@@ -2,7 +2,7 @@ import { createFileRoute, Link, useParams } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { getCaseFn } from "@/lib/cases.functions";
-import { ShieldAlert, Clock, ClipboardCheck, MessageSquare, Pill, Printer } from "lucide-react";
+import { ShieldAlert, Clock, ClipboardCheck, MessageSquare, Pill, Printer, Sparkles, AlertTriangle } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/app/case/$caseId")({
   component: CaseResults,
