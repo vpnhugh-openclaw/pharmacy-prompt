@@ -114,7 +114,9 @@ export const createCaseFn = createServerFn({ method: "POST" })
       confirmed_medications: data.confirmed_medications,
     };
 
-    const recs = await attachEvidence(supabase, runEngine(ctx, rules));
+    const baseRecs = await attachEvidence(supabase, runEngine(ctx, rules));
+    const sense = await runAiSenseCheck(ctx, baseRecs);
+    const recs = sense.recs;
 
     const { data: caseRow, error: caseErr } = await supabase
       .from("patient_cases")
