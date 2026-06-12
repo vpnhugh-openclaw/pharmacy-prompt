@@ -1,10 +1,35 @@
 // Server functions for PharmaPrompt OS.
 // Phase 1: deterministic rule engine. Phase 3: KB evidence attachment.
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { runEngine, type PatientCtx, type SafetyRuleRow } from "./engine";
 import { attachEvidence } from "./retrieval";
 import { runAiSenseCheck } from "./ai-sense-check";
+
+const TXT = (max = 10_000) => z.string().max(max).default("");
+const ConfirmedMedSchema = z.object({
+  generic_name: z.string().min(1).max(255),
+  brand_name: z.string().max(255).optional(),
+  drug_class: z.string().max(255).nullable().optional(),
+});
+const CaseInputSchema = z.object({
+  case_label: z.string().max(255).nullable().optional(),
+  age: z.number().int().min(0).max(130).nullable(),
+  sex: z.string().max(50).nullable(),
+  pregnancy_status: z.string().max(50).nullable(),
+  breastfeeding_status: z.string().max(50).nullable(),
+  allergies: TXT(),
+  medical_history: TXT(),
+  medication_text: TXT(),
+  symptoms: TXT(),
+  counselling_goal: TXT(2_000),
+  existing_supplements: TXT(),
+  pathology_notes: TXT(),
+  pharmacist_notes: TXT(),
+  confirmed_medications: z.array(ConfirmedMedSchema).max(100),
+});
+const CaseIdSchema = z.object({ caseId: z.string().uuid() });
 
 export type ConfirmedMed = { generic_name: string; brand_name?: string; drug_class?: string | null };
 
