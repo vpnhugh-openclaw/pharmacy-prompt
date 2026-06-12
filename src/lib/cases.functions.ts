@@ -87,7 +87,7 @@ export const listCasesFn = createServerFn({ method: "GET" })
 
 export const getCaseFn = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { caseId: string }) => d)
+  .inputValidator((d: unknown) => CaseIdSchema.parse(d))
   .handler(async ({ data, context }) => {
     const [caseRes, recsRes, auditRes] = await Promise.all([
       context.supabase.from("patient_cases").select("*").eq("case_id", data.caseId).maybeSingle(),
@@ -116,7 +116,7 @@ export const getCaseFn = createServerFn({ method: "GET" })
 
 export const createCaseFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: CaseInput) => d)
+  .inputValidator((d: unknown) => CaseInputSchema.parse(d) as CaseInput)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
 
