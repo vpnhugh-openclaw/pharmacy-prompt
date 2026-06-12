@@ -14,6 +14,150 @@ export type Database = {
   }
   public: {
     Tables: {
+      ingestion_jobs: {
+        Row: {
+          bucket: string
+          chunks_inserted: number
+          created_at: string
+          job_id: string
+          last_error: string | null
+          shard_done: number
+          shard_prefix: string
+          shard_total: number
+          source_label: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          bucket: string
+          chunks_inserted?: number
+          created_at?: string
+          job_id?: string
+          last_error?: string | null
+          shard_done?: number
+          shard_prefix: string
+          shard_total?: number
+          source_label: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          bucket?: string
+          chunks_inserted?: number
+          created_at?: string
+          job_id?: string
+          last_error?: string | null
+          shard_done?: number
+          shard_prefix?: string
+          shard_total?: number
+          source_label?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      kb_chunks: {
+        Row: {
+          char_count: number | null
+          chunk_id: string
+          chunk_index: number | null
+          created_at: string
+          cross_source_tags: string[] | null
+          id: string
+          page_id: string | null
+          page_short_id: string | null
+          page_type: string | null
+          retrieval_hints: string[] | null
+          section_heading: string | null
+          section_level: number | null
+          source: string
+          source_name: string | null
+          source_tier: number
+          source_url: string | null
+          text: string
+          title: string | null
+          token_estimate: number | null
+          topic_area: string | null
+          topic_code: string | null
+          tsv: unknown
+        }
+        Insert: {
+          char_count?: number | null
+          chunk_id: string
+          chunk_index?: number | null
+          created_at?: string
+          cross_source_tags?: string[] | null
+          id?: string
+          page_id?: string | null
+          page_short_id?: string | null
+          page_type?: string | null
+          retrieval_hints?: string[] | null
+          section_heading?: string | null
+          section_level?: number | null
+          source: string
+          source_name?: string | null
+          source_tier?: number
+          source_url?: string | null
+          text: string
+          title?: string | null
+          token_estimate?: number | null
+          topic_area?: string | null
+          topic_code?: string | null
+          tsv?: unknown
+        }
+        Update: {
+          char_count?: number | null
+          chunk_id?: string
+          chunk_index?: number | null
+          created_at?: string
+          cross_source_tags?: string[] | null
+          id?: string
+          page_id?: string | null
+          page_short_id?: string | null
+          page_type?: string | null
+          retrieval_hints?: string[] | null
+          section_heading?: string | null
+          section_level?: number | null
+          source?: string
+          source_name?: string | null
+          source_tier?: number
+          source_url?: string | null
+          text?: string
+          title?: string | null
+          token_estimate?: number | null
+          topic_area?: string | null
+          topic_code?: string | null
+          tsv?: unknown
+        }
+        Relationships: []
+      }
+      lookup_indexes: {
+        Row: {
+          chunk_id: string
+          concept_key: string
+          concept_type: string
+          created_at: string
+          id: string
+          weight: number
+        }
+        Insert: {
+          chunk_id: string
+          concept_key: string
+          concept_type: string
+          created_at?: string
+          id?: string
+          weight?: number
+        }
+        Update: {
+          chunk_id?: string
+          concept_key?: string
+          concept_type?: string
+          created_at?: string
+          id?: string
+          weight?: number
+        }
+        Relationships: []
+      }
       medication_dictionary: {
         Row: {
           aliases: string[] | null
@@ -160,6 +304,57 @@ export type Database = {
             referencedColumns: ["recommendation_id"]
           },
         ]
+      }
+      products: {
+        Row: {
+          active_ingredients: string[] | null
+          brand: string | null
+          category: string | null
+          cautions: string[] | null
+          created_at: string
+          indications: string[] | null
+          name: string
+          notes: string | null
+          pack_sizes: string[] | null
+          product_id: string
+          reviewed: boolean
+          schedule: string | null
+          source_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          active_ingredients?: string[] | null
+          brand?: string | null
+          category?: string | null
+          cautions?: string[] | null
+          created_at?: string
+          indications?: string[] | null
+          name: string
+          notes?: string | null
+          pack_sizes?: string[] | null
+          product_id?: string
+          reviewed?: boolean
+          schedule?: string | null
+          source_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active_ingredients?: string[] | null
+          brand?: string | null
+          category?: string | null
+          cautions?: string[] | null
+          created_at?: string
+          indications?: string[] | null
+          name?: string
+          notes?: string | null
+          pack_sizes?: string[] | null
+          product_id?: string
+          reviewed?: boolean
+          schedule?: string | null
+          source_url?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       recommendations: {
         Row: {
