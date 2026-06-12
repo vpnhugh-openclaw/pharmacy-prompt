@@ -321,6 +321,13 @@ function RecCard({
               </ul>
             </div>
           )}
+
+          <FeedbackRow
+            caseId={caseId}
+            recommendationId={r.recommendation_id}
+            latestStatus={latestStatus}
+            latestNotes={latestNotes}
+          />
         </div>
       </div>
     </article>
