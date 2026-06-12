@@ -58,7 +58,7 @@ export const listQueueFn = createServerFn({ method: "GET" })
     if (recsErr) throw new Error(recsErr.message);
 
     const caseIds = Array.from(new Set((recs ?? []).map((r) => r.case_id)));
-    if (caseIds.length === 0) return { groups: [] as Array<{ patientCase: unknown; items: unknown[] }> };
+    if (caseIds.length === 0) return { groups: [] };
 
     const [casesRes, feedbackRes] = await Promise.all([
       context.supabase
