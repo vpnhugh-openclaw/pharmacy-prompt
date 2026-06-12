@@ -14,8 +14,12 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app.index'
+import { Route as AuthenticatedAppSetupRouteImport } from './routes/_authenticated/app.setup'
 import { Route as AuthenticatedAppRulesRouteImport } from './routes/_authenticated/app.rules'
 import { Route as AuthenticatedAppReviewRouteImport } from './routes/_authenticated/app.review'
+import { Route as AuthenticatedAppReferencesRouteImport } from './routes/_authenticated/app.references'
+import { Route as AuthenticatedAppQueueRouteImport } from './routes/_authenticated/app.queue'
+import { Route as AuthenticatedAppProductsRouteImport } from './routes/_authenticated/app.products'
 import { Route as AuthenticatedAppCasesRouteImport } from './routes/_authenticated/app.cases'
 import { Route as AuthenticatedAppCaseCaseIdRouteImport } from './routes/_authenticated/app.case.$caseId'
 
@@ -43,6 +47,11 @@ const AuthenticatedAppIndexRoute = AuthenticatedAppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
+const AuthenticatedAppSetupRoute = AuthenticatedAppSetupRouteImport.update({
+  id: '/setup',
+  path: '/setup',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
 const AuthenticatedAppRulesRoute = AuthenticatedAppRulesRouteImport.update({
   id: '/rules',
   path: '/rules',
@@ -53,6 +62,23 @@ const AuthenticatedAppReviewRoute = AuthenticatedAppReviewRouteImport.update({
   path: '/review',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
+const AuthenticatedAppReferencesRoute =
+  AuthenticatedAppReferencesRouteImport.update({
+    id: '/references',
+    path: '/references',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppQueueRoute = AuthenticatedAppQueueRouteImport.update({
+  id: '/queue',
+  path: '/queue',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppProductsRoute =
+  AuthenticatedAppProductsRouteImport.update({
+    id: '/products',
+    path: '/products',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
 const AuthenticatedAppCasesRoute = AuthenticatedAppCasesRouteImport.update({
   id: '/cases',
   path: '/cases',
@@ -70,8 +96,12 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/app': typeof AuthenticatedAppRouteWithChildren
   '/app/cases': typeof AuthenticatedAppCasesRoute
+  '/app/products': typeof AuthenticatedAppProductsRoute
+  '/app/queue': typeof AuthenticatedAppQueueRoute
+  '/app/references': typeof AuthenticatedAppReferencesRoute
   '/app/review': typeof AuthenticatedAppReviewRoute
   '/app/rules': typeof AuthenticatedAppRulesRoute
+  '/app/setup': typeof AuthenticatedAppSetupRoute
   '/app/': typeof AuthenticatedAppIndexRoute
   '/app/case/$caseId': typeof AuthenticatedAppCaseCaseIdRoute
 }
@@ -79,8 +109,12 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/app/cases': typeof AuthenticatedAppCasesRoute
+  '/app/products': typeof AuthenticatedAppProductsRoute
+  '/app/queue': typeof AuthenticatedAppQueueRoute
+  '/app/references': typeof AuthenticatedAppReferencesRoute
   '/app/review': typeof AuthenticatedAppReviewRoute
   '/app/rules': typeof AuthenticatedAppRulesRoute
+  '/app/setup': typeof AuthenticatedAppSetupRoute
   '/app': typeof AuthenticatedAppIndexRoute
   '/app/case/$caseId': typeof AuthenticatedAppCaseCaseIdRoute
 }
@@ -91,8 +125,12 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/app': typeof AuthenticatedAppRouteWithChildren
   '/_authenticated/app/cases': typeof AuthenticatedAppCasesRoute
+  '/_authenticated/app/products': typeof AuthenticatedAppProductsRoute
+  '/_authenticated/app/queue': typeof AuthenticatedAppQueueRoute
+  '/_authenticated/app/references': typeof AuthenticatedAppReferencesRoute
   '/_authenticated/app/review': typeof AuthenticatedAppReviewRoute
   '/_authenticated/app/rules': typeof AuthenticatedAppRulesRoute
+  '/_authenticated/app/setup': typeof AuthenticatedAppSetupRoute
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
   '/_authenticated/app/case/$caseId': typeof AuthenticatedAppCaseCaseIdRoute
 }
@@ -103,8 +141,12 @@ export interface FileRouteTypes {
     | '/auth'
     | '/app'
     | '/app/cases'
+    | '/app/products'
+    | '/app/queue'
+    | '/app/references'
     | '/app/review'
     | '/app/rules'
+    | '/app/setup'
     | '/app/'
     | '/app/case/$caseId'
   fileRoutesByTo: FileRoutesByTo
@@ -112,8 +154,12 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/app/cases'
+    | '/app/products'
+    | '/app/queue'
+    | '/app/references'
     | '/app/review'
     | '/app/rules'
+    | '/app/setup'
     | '/app'
     | '/app/case/$caseId'
   id:
@@ -123,8 +169,12 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/app'
     | '/_authenticated/app/cases'
+    | '/_authenticated/app/products'
+    | '/_authenticated/app/queue'
+    | '/_authenticated/app/references'
     | '/_authenticated/app/review'
     | '/_authenticated/app/rules'
+    | '/_authenticated/app/setup'
     | '/_authenticated/app/'
     | '/_authenticated/app/case/$caseId'
   fileRoutesById: FileRoutesById
@@ -172,6 +222,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppIndexRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
+    '/_authenticated/app/setup': {
+      id: '/_authenticated/app/setup'
+      path: '/setup'
+      fullPath: '/app/setup'
+      preLoaderRoute: typeof AuthenticatedAppSetupRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
     '/_authenticated/app/rules': {
       id: '/_authenticated/app/rules'
       path: '/rules'
@@ -184,6 +241,27 @@ declare module '@tanstack/react-router' {
       path: '/review'
       fullPath: '/app/review'
       preLoaderRoute: typeof AuthenticatedAppReviewRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/references': {
+      id: '/_authenticated/app/references'
+      path: '/references'
+      fullPath: '/app/references'
+      preLoaderRoute: typeof AuthenticatedAppReferencesRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/queue': {
+      id: '/_authenticated/app/queue'
+      path: '/queue'
+      fullPath: '/app/queue'
+      preLoaderRoute: typeof AuthenticatedAppQueueRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/products': {
+      id: '/_authenticated/app/products'
+      path: '/products'
+      fullPath: '/app/products'
+      preLoaderRoute: typeof AuthenticatedAppProductsRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
     '/_authenticated/app/cases': {
@@ -205,16 +283,24 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedAppRouteChildren {
   AuthenticatedAppCasesRoute: typeof AuthenticatedAppCasesRoute
+  AuthenticatedAppProductsRoute: typeof AuthenticatedAppProductsRoute
+  AuthenticatedAppQueueRoute: typeof AuthenticatedAppQueueRoute
+  AuthenticatedAppReferencesRoute: typeof AuthenticatedAppReferencesRoute
   AuthenticatedAppReviewRoute: typeof AuthenticatedAppReviewRoute
   AuthenticatedAppRulesRoute: typeof AuthenticatedAppRulesRoute
+  AuthenticatedAppSetupRoute: typeof AuthenticatedAppSetupRoute
   AuthenticatedAppIndexRoute: typeof AuthenticatedAppIndexRoute
   AuthenticatedAppCaseCaseIdRoute: typeof AuthenticatedAppCaseCaseIdRoute
 }
 
 const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
   AuthenticatedAppCasesRoute: AuthenticatedAppCasesRoute,
+  AuthenticatedAppProductsRoute: AuthenticatedAppProductsRoute,
+  AuthenticatedAppQueueRoute: AuthenticatedAppQueueRoute,
+  AuthenticatedAppReferencesRoute: AuthenticatedAppReferencesRoute,
   AuthenticatedAppReviewRoute: AuthenticatedAppReviewRoute,
   AuthenticatedAppRulesRoute: AuthenticatedAppRulesRoute,
+  AuthenticatedAppSetupRoute: AuthenticatedAppSetupRoute,
   AuthenticatedAppIndexRoute: AuthenticatedAppIndexRoute,
   AuthenticatedAppCaseCaseIdRoute: AuthenticatedAppCaseCaseIdRoute,
 }
