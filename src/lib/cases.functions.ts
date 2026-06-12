@@ -4,6 +4,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { runEngine, type PatientCtx, type SafetyRuleRow } from "./engine";
 import { attachEvidence } from "./retrieval";
+import { runAiSenseCheck } from "./ai-sense-check";
 
 export type ConfirmedMed = { generic_name: string; brand_name?: string; drug_class?: string | null };
 
