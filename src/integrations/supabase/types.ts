@@ -14,7 +14,302 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      medication_dictionary: {
+        Row: {
+          aliases: string[] | null
+          atc_hint: string | null
+          brand_names: string[] | null
+          created_at: string
+          drug_class: string | null
+          generic_name: string
+          id: string
+        }
+        Insert: {
+          aliases?: string[] | null
+          atc_hint?: string | null
+          brand_names?: string[] | null
+          created_at?: string
+          drug_class?: string | null
+          generic_name: string
+          id?: string
+        }
+        Update: {
+          aliases?: string[] | null
+          atc_hint?: string | null
+          brand_names?: string[] | null
+          created_at?: string
+          drug_class?: string | null
+          generic_name?: string
+          id?: string
+        }
+        Relationships: []
+      }
+      patient_cases: {
+        Row: {
+          age: number | null
+          allergies: string | null
+          breastfeeding_status: string | null
+          case_id: string
+          case_label: string | null
+          confirmed_medications: Json | null
+          counselling_goal: string | null
+          created_at: string
+          detected_drug_classes: Json | null
+          detected_patient_factors: Json | null
+          existing_supplements: string | null
+          medical_history: string | null
+          medication_text: string | null
+          parsed_medications: Json | null
+          pathology_notes: string | null
+          pharmacist_notes: string | null
+          pregnancy_status: string | null
+          sex: string | null
+          symptoms: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          age?: number | null
+          allergies?: string | null
+          breastfeeding_status?: string | null
+          case_id?: string
+          case_label?: string | null
+          confirmed_medications?: Json | null
+          counselling_goal?: string | null
+          created_at?: string
+          detected_drug_classes?: Json | null
+          detected_patient_factors?: Json | null
+          existing_supplements?: string | null
+          medical_history?: string | null
+          medication_text?: string | null
+          parsed_medications?: Json | null
+          pathology_notes?: string | null
+          pharmacist_notes?: string | null
+          pregnancy_status?: string | null
+          sex?: string | null
+          symptoms?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          age?: number | null
+          allergies?: string | null
+          breastfeeding_status?: string | null
+          case_id?: string
+          case_label?: string | null
+          confirmed_medications?: Json | null
+          counselling_goal?: string | null
+          created_at?: string
+          detected_drug_classes?: Json | null
+          detected_patient_factors?: Json | null
+          existing_supplements?: string | null
+          medical_history?: string | null
+          medication_text?: string | null
+          parsed_medications?: Json | null
+          pathology_notes?: string | null
+          pharmacist_notes?: string | null
+          pregnancy_status?: string | null
+          sex?: string | null
+          symptoms?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      pharmacist_feedback: {
+        Row: {
+          case_id: string
+          created_at: string
+          feedback_id: string
+          notes: string | null
+          recommendation_id: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          case_id: string
+          created_at?: string
+          feedback_id?: string
+          notes?: string | null
+          recommendation_id?: string | null
+          status: string
+          user_id: string
+        }
+        Update: {
+          case_id?: string
+          created_at?: string
+          feedback_id?: string
+          notes?: string | null
+          recommendation_id?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pharmacist_feedback_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "patient_cases"
+            referencedColumns: ["case_id"]
+          },
+          {
+            foreignKeyName: "pharmacist_feedback_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "recommendations"
+            referencedColumns: ["recommendation_id"]
+          },
+        ]
+      }
+      recommendations: {
+        Row: {
+          ai_reviewer_notes: Json | null
+          brand: string | null
+          case_id: string
+          confidence: string
+          created_at: string
+          deferred: boolean
+          feedback_status: string | null
+          hidden: boolean
+          interaction_notes: Json | null
+          matched_medicines: Json | null
+          matched_patient_factors: Json | null
+          matched_product_tags: Json | null
+          pharmacist_checks: Json | null
+          product_id: string | null
+          product_name: string | null
+          rank: number
+          recommendation_id: string
+          recommendation_type: string
+          review_status: string | null
+          safety_cautions: Json | null
+          score: number
+          sense_check_status: string | null
+          source_references: Json | null
+          talking_points: Json | null
+          title: string
+          user_id: string
+          why_triggered: string | null
+        }
+        Insert: {
+          ai_reviewer_notes?: Json | null
+          brand?: string | null
+          case_id: string
+          confidence?: string
+          created_at?: string
+          deferred?: boolean
+          feedback_status?: string | null
+          hidden?: boolean
+          interaction_notes?: Json | null
+          matched_medicines?: Json | null
+          matched_patient_factors?: Json | null
+          matched_product_tags?: Json | null
+          pharmacist_checks?: Json | null
+          product_id?: string | null
+          product_name?: string | null
+          rank?: number
+          recommendation_id?: string
+          recommendation_type: string
+          review_status?: string | null
+          safety_cautions?: Json | null
+          score?: number
+          sense_check_status?: string | null
+          source_references?: Json | null
+          talking_points?: Json | null
+          title: string
+          user_id: string
+          why_triggered?: string | null
+        }
+        Update: {
+          ai_reviewer_notes?: Json | null
+          brand?: string | null
+          case_id?: string
+          confidence?: string
+          created_at?: string
+          deferred?: boolean
+          feedback_status?: string | null
+          hidden?: boolean
+          interaction_notes?: Json | null
+          matched_medicines?: Json | null
+          matched_patient_factors?: Json | null
+          matched_product_tags?: Json | null
+          pharmacist_checks?: Json | null
+          product_id?: string | null
+          product_name?: string | null
+          rank?: number
+          recommendation_id?: string
+          recommendation_type?: string
+          review_status?: string | null
+          safety_cautions?: Json | null
+          score?: number
+          sense_check_status?: string | null
+          source_references?: Json | null
+          talking_points?: Json | null
+          title?: string
+          user_id?: string
+          why_triggered?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recommendations_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "patient_cases"
+            referencedColumns: ["case_id"]
+          },
+        ]
+      }
+      safety_rules: {
+        Row: {
+          avoid_product_keywords: string[] | null
+          created_at: string
+          description: string
+          match_product_tags: string[] | null
+          name: string
+          pharmacist_checks: Json | null
+          pharmacist_message: string
+          recommendation_type: string
+          review_required: boolean
+          rule_id: string
+          severity: string
+          trigger_drug_classes: string[] | null
+          trigger_keywords: string[] | null
+          trigger_patient_factors: string[] | null
+        }
+        Insert: {
+          avoid_product_keywords?: string[] | null
+          created_at?: string
+          description: string
+          match_product_tags?: string[] | null
+          name: string
+          pharmacist_checks?: Json | null
+          pharmacist_message: string
+          recommendation_type: string
+          review_required?: boolean
+          rule_id: string
+          severity: string
+          trigger_drug_classes?: string[] | null
+          trigger_keywords?: string[] | null
+          trigger_patient_factors?: string[] | null
+        }
+        Update: {
+          avoid_product_keywords?: string[] | null
+          created_at?: string
+          description?: string
+          match_product_tags?: string[] | null
+          name?: string
+          pharmacist_checks?: Json | null
+          pharmacist_message?: string
+          recommendation_type?: string
+          review_required?: boolean
+          rule_id?: string
+          severity?: string
+          trigger_drug_classes?: string[] | null
+          trigger_keywords?: string[] | null
+          trigger_patient_factors?: string[] | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
