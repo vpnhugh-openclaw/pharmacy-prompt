@@ -28,14 +28,18 @@ type RawChunk = {
   text: string;
 };
 
-async function assertAdmin(ctx: { supabase: { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }> }; userId: string }) {
-  const { data, error } = await ctx.supabase.rpc("has_role", {
+type AuthCtx = { supabase: ReturnType<typeof import("@supabase/supabase-js").createClient>; userId: string };
+
+async function assertAdmin(ctx: { supabase: unknown; userId: string }) {
+  const supabase = ctx.supabase as { rpc: (fn: "has_role", args: { _user_id: string; _role: "admin" | "pharmacist" }) => Promise<{ data: boolean | null; error: { message: string } | null }> };
+  const { data, error } = await supabase.rpc("has_role", {
     _user_id: ctx.userId,
     _role: "admin",
   });
   if (error) throw new Error("Authorization check failed");
   if (!data) throw new Error("Forbidden: admin role required");
 }
+void ({} as AuthCtx);
 
 const JobIdSchema = z.object({ jobId: z.string().uuid() });
 const SearchSchema = z.object({
