@@ -17,9 +17,7 @@ const CaseIdSchema = z.object({ caseId: z.string().uuid() });
 
 export const submitFeedbackFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
-    (d: { case_id: string; recommendation_id: string; status: FeedbackStatus; notes?: string }) => d,
-  )
+  .inputValidator((d: unknown) => SubmitFeedbackSchema.parse(d))
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase.from("pharmacist_feedback").insert({
       case_id: data.case_id,
