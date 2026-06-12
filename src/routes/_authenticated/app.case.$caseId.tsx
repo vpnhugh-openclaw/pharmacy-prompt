@@ -391,3 +391,114 @@ function SenseCheckBanner({ sc }: SenseCheckProps) {
     </div>
   );
 }
+
+const STATUS_META: Record<FeedbackStatus, { label: string; icon: typeof Check; tone: string }> = {
+  accepted: { label: "Accepted", icon: Check, tone: "text-accent" },
+  modified: { label: "Modified", icon: Pencil, tone: "text-amber-500" },
+  declined: { label: "Declined", icon: X, tone: "text-muted-foreground" },
+  escalated: { label: "Escalated for review", icon: Flag, tone: "text-signal" },
+};
+
+function FeedbackRow({
+  caseId,
+  recommendationId,
+  latestStatus,
+  latestNotes,
+}: {
+  caseId: string;
+  recommendationId: string;
+  latestStatus: FeedbackStatus | null;
+  latestNotes: string | null;
+}) {
+  const qc = useQueryClient();
+  const submit = useServerFn(submitFeedbackFn);
+  const undo = useServerFn(undoFeedbackFn);
+  const [notes, setNotes] = useState(latestNotes ?? "");
+  const [showNotes, setShowNotes] = useState(false);
+
+  const submitMut = useMutation({
+    mutationFn: (s: FeedbackStatus) =>
+      submit({
+        data: {
+          case_id: caseId,
+          recommendation_id: recommendationId,
+          status: s,
+          notes: notes.trim() || undefined,
+        },
+      }),
+    onSuccess: (_d, s) => {
+      qc.invalidateQueries({ queryKey: ["case-feedback", caseId] });
+      toast(`Marked ${STATUS_META[s].label.toLowerCase()}`, {
+        action: {
+          label: "Undo",
+          onClick: async () => {
+            await undo({ data: { recommendation_id: recommendationId } });
+            qc.invalidateQueries({ queryKey: ["case-feedback", caseId] });
+          },
+        },
+      });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Could not save feedback"),
+  });
+
+  if (latestStatus) {
+    const m = STATUS_META[latestStatus];
+    const Icon = m.icon;
+    return (
+      <div className="mt-4 border-t border-hairline pt-3 flex items-center justify-between gap-3 no-print">
+        <div className={`flex items-center gap-2 text-sm ${m.tone}`}>
+          <Icon className="h-4 w-4" />
+          <span>{m.label}</span>
+          {latestNotes && <span className="text-muted-foreground">· {latestNotes}</span>}
+        </div>
+        <button
+          className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+          onClick={async () => {
+            await undo({ data: { recommendation_id: recommendationId } });
+            qc.invalidateQueries({ queryKey: ["case-feedback", caseId] });
+          }}
+        >
+          Undo
+        </button>
+      </div>
+    );
+  }
+
+  const Btn = ({ s, icon: I, label }: { s: FeedbackStatus; icon: typeof Check; label: string }) => (
+    <button
+      onClick={() => submitMut.mutate(s)}
+      disabled={submitMut.isPending}
+      className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs hover:bg-secondary disabled:opacity-50"
+    >
+      <I className="h-3.5 w-3.5" /> {label}
+    </button>
+  );
+
+  return (
+    <div className="mt-4 border-t border-hairline pt-3 no-print">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2">
+          <Btn s="accepted" icon={Check} label="Accept" />
+          <Btn s="modified" icon={Pencil} label="Modify" />
+          <Btn s="declined" icon={X} label="Decline" />
+          <Btn s="escalated" icon={Flag} label="Escalate" />
+        </div>
+        <button
+          className="text-xs text-muted-foreground hover:text-foreground"
+          onClick={() => setShowNotes((v) => !v)}
+        >
+          {showNotes ? "Hide note" : "Add note"}
+        </button>
+      </div>
+      {showNotes && (
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Short note (optional) — included with the feedback record."
+          className="mt-2 w-full text-sm rounded-md border border-border bg-background px-3 py-2"
+          rows={2}
+        />
+      )}
+    </div>
+  );
+}
