@@ -1,7 +1,9 @@
-// Server functions for PharmaPrompt OS — Phase 1 (deterministic engine).
+// Server functions for PharmaPrompt OS.
+// Phase 1: deterministic rule engine. Phase 3: KB evidence attachment.
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { runEngine, type PatientCtx, type SafetyRuleRow } from "./engine";
+import { attachEvidence } from "./retrieval";
 
 export type ConfirmedMed = { generic_name: string; brand_name?: string; drug_class?: string | null };
 
@@ -111,7 +113,7 @@ export const createCaseFn = createServerFn({ method: "POST" })
       confirmed_medications: data.confirmed_medications,
     };
 
-    const recs = runEngine(ctx, rules);
+    const recs = await attachEvidence(supabase, runEngine(ctx, rules));
 
     const { data: caseRow, error: caseErr } = await supabase
       .from("patient_cases")
