@@ -4,6 +4,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { runEngine, type PatientCtx, type SafetyRuleRow } from "./engine";
 import { attachEvidence } from "./retrieval";
+import { runAiSenseCheck } from "./ai-sense-check";
 
 export type ConfirmedMed = { generic_name: string; brand_name?: string; drug_class?: string | null };
 
@@ -63,18 +64,29 @@ export const getCaseFn = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { caseId: string }) => d)
   .handler(async ({ data, context }) => {
-    const [caseRes, recsRes] = await Promise.all([
+    const [caseRes, recsRes, auditRes] = await Promise.all([
       context.supabase.from("patient_cases").select("*").eq("case_id", data.caseId).maybeSingle(),
       context.supabase
         .from("recommendations")
         .select("*")
         .eq("case_id", data.caseId)
         .order("rank", { ascending: true }),
+      context.supabase
+        .from("sense_check_audits")
+        .select("status, model, applied_changes, rejected_changes, error_message, latency_ms, raw_response, created_at")
+        .eq("case_id", data.caseId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
     ]);
     if (caseRes.error) throw new Error(caseRes.error.message);
     if (recsRes.error) throw new Error(recsRes.error.message);
     if (!caseRes.data) throw new Error("Case not found");
-    return { patientCase: caseRes.data, recommendations: recsRes.data ?? [] };
+    return {
+      patientCase: caseRes.data,
+      recommendations: recsRes.data ?? [],
+      senseCheck: auditRes.data ?? null,
+    };
   });
 
 export const createCaseFn = createServerFn({ method: "POST" })
@@ -113,7 +125,9 @@ export const createCaseFn = createServerFn({ method: "POST" })
       confirmed_medications: data.confirmed_medications,
     };
 
-    const recs = await attachEvidence(supabase, runEngine(ctx, rules));
+    const baseRecs = await attachEvidence(supabase, runEngine(ctx, rules));
+    const sense = await runAiSenseCheck(ctx, baseRecs);
+    const recs = sense.recs;
 
     const { data: caseRow, error: caseErr } = await supabase
       .from("patient_cases")
@@ -165,6 +179,24 @@ export const createCaseFn = createServerFn({ method: "POST" })
       const { error: recErr } = await supabase.from("recommendations").insert(rows);
       if (recErr) throw new Error(recErr.message);
     }
+
+    await supabase.from("sense_check_audits").insert({
+      case_id: caseRow.case_id,
+      user_id: userId,
+      model: sense.model,
+      status: sense.status,
+      input_summary: {
+        age: ctx.age,
+        sex: ctx.sex,
+        medication_count: ctx.confirmed_medications.length,
+        rec_count: baseRecs.length,
+      } as never,
+      raw_response: (sense.overall_note ? { overall_note: sense.overall_note } : null) as never,
+      applied_changes: sense.applied as never,
+      rejected_changes: sense.rejected as never,
+      error_message: sense.error ?? null,
+      latency_ms: sense.latency_ms,
+    });
 
     return { case_id: caseRow.case_id };
   });
