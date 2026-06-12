@@ -32,7 +32,7 @@ export const submitFeedbackFn = createServerFn({ method: "POST" })
 
 export const undoFeedbackFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { recommendation_id: string }) => d)
+  .inputValidator((d: unknown) => RecIdSchema.parse(d))
   .handler(async ({ data, context }) => {
     // Delete only the latest feedback for this rec by this user.
     const { data: latest, error: selErr } = await context.supabase
@@ -107,7 +107,7 @@ export const listQueueFn = createServerFn({ method: "GET" })
 
 export const getCaseFeedbackFn = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { caseId: string }) => d)
+  .inputValidator((d: unknown) => CaseIdSchema.parse(d))
   .handler(async ({ data, context }) => {
     const { data: rows, error } = await context.supabase
       .from("pharmacist_feedback")
@@ -120,7 +120,7 @@ export const getCaseFeedbackFn = createServerFn({ method: "GET" })
 
 export const exportCaseFn = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { caseId: string }) => d)
+  .inputValidator((d: unknown) => CaseIdSchema.parse(d))
   .handler(async ({ data, context }) => {
     const [caseRes, recsRes, feedbackRes] = await Promise.all([
       context.supabase.from("patient_cases").select("*").eq("case_id", data.caseId).maybeSingle(),
