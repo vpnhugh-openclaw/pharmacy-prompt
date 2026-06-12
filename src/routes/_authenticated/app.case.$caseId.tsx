@@ -60,7 +60,17 @@ function CaseResults() {
     );
   if (!data) return null;
 
-  const { patientCase: p, recommendations: recs } = data;
+  const { patientCase: p, recommendations: recs, senseCheck } = data as typeof data & {
+    senseCheck: null | {
+      status: string;
+      model: string;
+      applied_changes: unknown;
+      rejected_changes: unknown;
+      error_message: string | null;
+      latency_ms: number | null;
+      raw_response: { overall_note?: string } | null;
+    };
+  };
   const grouped = (Object.keys(TYPE_META) as Array<keyof typeof TYPE_META>).map((t) => ({
     type: t,
     items: (recs as RecRow[]).filter((r) => r.recommendation_type === t),
