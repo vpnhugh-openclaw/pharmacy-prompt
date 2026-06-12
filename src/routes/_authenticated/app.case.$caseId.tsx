@@ -38,6 +38,11 @@ function asArr(v: unknown): string[] {
   return Array.isArray(v) ? (v as string[]) : [];
 }
 
+type SourceRef = { source: string; tier_label: string; note: string; url?: string };
+function asRefs(v: unknown): SourceRef[] {
+  return Array.isArray(v) ? (v as SourceRef[]) : [];
+}
+
 function CaseResults() {
   const { caseId } = useParams({ from: "/_authenticated/app/case/$caseId" });
   const fetchCase = useServerFn(getCaseFn);
@@ -193,6 +198,35 @@ function RecCard({ r }: { r: RecRow }) {
               </span>
             ))}
           </div>
+
+          {asRefs(r.source_references).length > 0 && (
+            <div className="mt-4 border-t border-hairline pt-3">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Sources</p>
+              <ul className="mt-1.5 text-xs space-y-1">
+                {asRefs(r.source_references).map((s, i) => (
+                  <li key={i} className="flex items-baseline gap-2">
+                    <span className="pp-chip text-[10px] shrink-0">{s.tier_label}</span>
+                    {s.url ? (
+                      <a
+                        href={s.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-foreground hover:underline underline-offset-2"
+                      >
+                        {s.source}
+                        {s.note ? ` — ${s.note}` : ""}
+                      </a>
+                    ) : (
+                      <span className="text-muted-foreground">
+                        <span className="text-foreground">{s.source}</span>
+                        {s.note ? ` — ${s.note}` : ""}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       </div>
     </article>
