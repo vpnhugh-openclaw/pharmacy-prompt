@@ -69,10 +69,34 @@ function asRefs(v: unknown): SourceRef[] {
 function CaseResults() {
   const { caseId } = useParams({ from: "/_authenticated/app/case/$caseId" });
   const fetchCase = useServerFn(getCaseFn);
+  const fetchFeedback = useServerFn(getCaseFeedbackFn);
+  const exportCase = useServerFn(exportCaseFn);
   const { data, isLoading, error } = useQuery({
     queryKey: ["case", caseId],
     queryFn: () => fetchCase({ data: { caseId } }),
   });
+  const feedbackQ = useQuery({
+    queryKey: ["case-feedback", caseId],
+    queryFn: () => fetchFeedback({ data: { caseId } }),
+  });
+
+  const handleExport = async (kind: "json" | "csv") => {
+    try {
+      const out = await exportCase({ data: { caseId } });
+      const blob =
+        kind === "json"
+          ? new Blob([JSON.stringify(out.json, null, 2)], { type: "application/json" })
+          : new Blob([out.csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `case-${caseId}.${kind}`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Export failed");
+    }
+  };
 
   if (isLoading) return <div className="px-8 py-10 text-sm text-muted-foreground">Loading…</div>;
   if (error)
