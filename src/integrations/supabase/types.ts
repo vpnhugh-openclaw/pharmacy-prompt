@@ -505,6 +505,59 @@ export type Database = {
         }
         Relationships: []
       }
+      sense_check_audits: {
+        Row: {
+          applied_changes: Json | null
+          audit_id: string
+          case_id: string
+          created_at: string
+          error_message: string | null
+          input_summary: Json | null
+          latency_ms: number | null
+          model: string
+          raw_response: Json | null
+          rejected_changes: Json | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          applied_changes?: Json | null
+          audit_id?: string
+          case_id: string
+          created_at?: string
+          error_message?: string | null
+          input_summary?: Json | null
+          latency_ms?: number | null
+          model: string
+          raw_response?: Json | null
+          rejected_changes?: Json | null
+          status: string
+          user_id: string
+        }
+        Update: {
+          applied_changes?: Json | null
+          audit_id?: string
+          case_id?: string
+          created_at?: string
+          error_message?: string | null
+          input_summary?: Json | null
+          latency_ms?: number | null
+          model?: string
+          raw_response?: Json | null
+          rejected_changes?: Json | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sense_check_audits_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "patient_cases"
+            referencedColumns: ["case_id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
