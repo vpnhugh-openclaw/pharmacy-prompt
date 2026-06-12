@@ -253,3 +253,52 @@ function Meta({ k, v }: { k: string; v: string }) {
     </div>
   );
 }
+
+type SenseCheckProps = {
+  sc: {
+    status: string;
+    model: string;
+    applied_changes: unknown;
+    rejected_changes: unknown;
+    error_message: string | null;
+    latency_ms: number | null;
+    raw_response: { overall_note?: string } | null;
+  };
+};
+
+function SenseCheckBanner({ sc }: SenseCheckProps) {
+  const applied = Array.isArray(sc.applied_changes) ? (sc.applied_changes as Array<{ action: string }>) : [];
+  const rejected = Array.isArray(sc.rejected_changes) ? (sc.rejected_changes as Array<{ action: string }>) : [];
+  const note = sc.raw_response?.overall_note;
+
+  if (sc.status === "ok") {
+    return (
+      <div className="mt-6 pp-glass p-4 flex items-start gap-3">
+        <Sparkles className="h-5 w-5 mt-0.5 text-accent shrink-0" />
+        <div className="flex-1 text-sm">
+          <p className="font-medium">
+            AI sense-check passed
+            <span className="ml-2 text-xs text-muted-foreground">
+              {applied.length} applied · {rejected.length} rejected by safer-only guard
+              {sc.latency_ms ? ` · ${sc.latency_ms}ms` : ""}
+            </span>
+          </p>
+          {note && <p className="mt-1 text-muted-foreground">{note}</p>}
+          <p className="mt-1 text-xs text-muted-foreground">
+            Deterministic rules remain the source of truth. AI can only lower confidence, add cautions, or flag for review.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-6 pp-glass p-4 flex items-start gap-3 border-amber-500/30">
+      <AlertTriangle className="h-5 w-5 mt-0.5 text-amber-500 shrink-0" />
+      <div className="flex-1 text-sm">
+        <p className="font-medium">AI sense-check unavailable — showing deterministic recommendations only.</p>
+        {sc.error_message && <p className="mt-1 text-xs text-muted-foreground">{sc.error_message}</p>}
+      </div>
+    </div>
+  );
+}
