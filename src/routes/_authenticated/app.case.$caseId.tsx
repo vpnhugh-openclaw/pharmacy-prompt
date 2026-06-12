@@ -198,9 +198,20 @@ function CaseResults() {
                   {TYPE_META[g.type].label}
                 </h2>
                 <div className="space-y-3">
-                  {g.items.map((r) => (
-                    <RecCard key={r.recommendation_id} r={r} />
-                  ))}
+                  {g.items.map((r) => {
+                    const latest = (feedbackQ.data ?? []).find(
+                      (f) => f.recommendation_id === r.recommendation_id,
+                    );
+                    return (
+                      <RecCard
+                        key={r.recommendation_id}
+                        r={r}
+                        caseId={caseId}
+                        latestStatus={(latest?.status as FeedbackStatus | undefined) ?? null}
+                        latestNotes={latest?.notes ?? null}
+                      />
+                    );
+                  })}
                 </div>
               </section>
             ),
