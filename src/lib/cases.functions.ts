@@ -1,12 +1,18 @@
 // Server functions for PharmaPrompt OS.
 // Phase 1: deterministic rule engine. Phase 3: KB evidence attachment.
+// Phase 5: product recommendations.
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { runEngine, type PatientCtx, type SafetyRuleRow } from "./engine";
+import type { ProductRow } from "./recommend-products";
 import { attachEvidence } from "./retrieval";
 import { runAiSenseCheck } from "./ai-sense-check";
 
-export type ConfirmedMed = { generic_name: string; brand_name?: string; drug_class?: string | null };
+export type ConfirmedMed = {
+  generic_name: string;
+  brand_name?: string;
+  drug_class?: string | null;
+};
 
 export type CaseInput = {
   case_label?: string | null;
@@ -60,6 +66,20 @@ export const listCasesFn = createServerFn({ method: "GET" })
     return data ?? [];
   });
 
+export const listProductsFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("products")
+      .select(
+        "product_id, name, brand, category, active_ingredients, indications, cautions, pack_sizes, schedule, reviewed, clinical_use_tags, avoid_if_tags",
+      )
+      .order("brand", { ascending: true })
+      .order("name", { ascending: true });
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  });
+
 export const getCaseFn = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { caseId: string }) => d)
@@ -73,7 +93,9 @@ export const getCaseFn = createServerFn({ method: "GET" })
         .order("rank", { ascending: true }),
       context.supabase
         .from("sense_check_audits")
-        .select("status, model, applied_changes, rejected_changes, error_message, latency_ms, raw_response, created_at")
+        .select(
+          "status, model, applied_changes, rejected_changes, error_message, latency_ms, raw_response, created_at",
+        )
         .eq("case_id", data.caseId)
         .order("created_at", { ascending: false })
         .limit(1)
@@ -95,9 +117,18 @@ export const createCaseFn = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
 
-    const { data: rulesData, error: rulesErr } = await supabase.from("safety_rules").select("*");
-    if (rulesErr) throw new Error(rulesErr.message);
-    const rules: SafetyRuleRow[] = (rulesData ?? []).map((r) => ({
+    const [rulesRes, productsRes] = await Promise.all([
+      supabase.from("safety_rules").select("*"),
+      supabase
+        .from("products")
+        .select(
+          "product_id, name, brand, category, active_ingredients, indications, cautions, pack_sizes, schedule, reviewed, source_url, notes, clinical_use_tags, avoid_if_tags, medicine_interaction_flags, counselling_flags",
+        )
+        .eq("reviewed", true),
+    ]);
+    if (rulesRes.error) throw new Error(rulesRes.error.message);
+    if (productsRes.error) throw new Error(productsRes.error.message);
+    const rules: SafetyRuleRow[] = (rulesRes.data ?? []).map((r) => ({
       rule_id: r.rule_id,
       name: r.name,
       description: r.description ?? "",
@@ -107,8 +138,37 @@ export const createCaseFn = createServerFn({ method: "POST" })
       severity: r.severity ?? "Medium",
       recommendation_type: r.recommendation_type ?? "review_required",
       pharmacist_message: r.pharmacist_message ?? "",
-      pharmacist_checks: Array.isArray(r.pharmacist_checks) ? (r.pharmacist_checks as string[]) : [],
+      pharmacist_checks: Array.isArray(r.pharmacist_checks)
+        ? (r.pharmacist_checks as string[])
+        : [],
       review_required: !!r.review_required,
+    }));
+
+    const products: ProductRow[] = (productsRes.data ?? []).map((p) => ({
+      product_id: p.product_id,
+      name: p.name,
+      brand: p.brand ?? null,
+      category: p.category ?? null,
+      active_ingredients: Array.isArray(p.active_ingredients)
+        ? (p.active_ingredients as string[])
+        : [],
+      indications: Array.isArray(p.indications) ? (p.indications as string[]) : [],
+      cautions: Array.isArray(p.cautions) ? (p.cautions as string[]) : [],
+      pack_sizes: Array.isArray(p.pack_sizes) ? (p.pack_sizes as string[]) : [],
+      schedule: p.schedule ?? null,
+      reviewed: !!p.reviewed,
+      source_url: p.source_url ?? null,
+      notes: p.notes ?? null,
+      clinical_use_tags: Array.isArray(p.clinical_use_tags)
+        ? (p.clinical_use_tags as string[])
+        : [],
+      avoid_if_tags: Array.isArray(p.avoid_if_tags) ? (p.avoid_if_tags as string[]) : [],
+      medicine_interaction_flags: Array.isArray(p.medicine_interaction_flags)
+        ? (p.medicine_interaction_flags as string[])
+        : [],
+      counselling_flags: Array.isArray(p.counselling_flags)
+        ? (p.counselling_flags as string[])
+        : [],
     }));
 
     const ctx: PatientCtx = {
@@ -125,7 +185,7 @@ export const createCaseFn = createServerFn({ method: "POST" })
       confirmed_medications: data.confirmed_medications,
     };
 
-    const baseRecs = await attachEvidence(supabase, runEngine(ctx, rules));
+    const baseRecs = await attachEvidence(supabase, runEngine(ctx, rules, products));
     const sense = await runAiSenseCheck(ctx, baseRecs);
     const recs = sense.recs;
 
@@ -150,7 +210,9 @@ export const createCaseFn = createServerFn({ method: "POST" })
         detected_drug_classes: Array.from(
           new Set(data.confirmed_medications.map((m) => m.drug_class).filter(Boolean)),
         ) as never,
-        detected_patient_factors: Array.from(new Set(recs.flatMap((r) => r.matched_patient_factors))) as never,
+        detected_patient_factors: Array.from(
+          new Set(recs.flatMap((r) => r.matched_patient_factors)),
+        ) as never,
       })
       .select("case_id")
       .single();
@@ -162,6 +224,7 @@ export const createCaseFn = createServerFn({ method: "POST" })
         user_id: userId,
         recommendation_type: r.recommendation_type,
         title: r.title,
+        product_id: r.product_id ?? null,
         product_name: r.product_name ?? null,
         brand: r.brand ?? null,
         confidence: r.confidence,
@@ -174,6 +237,7 @@ export const createCaseFn = createServerFn({ method: "POST" })
         interaction_notes: r.interaction_notes as never,
         matched_medicines: r.matched_medicines as never,
         matched_patient_factors: r.matched_patient_factors as never,
+        matched_product_tags: r.matched_product_tags ?? ([] as string[] as never),
         source_references: r.source_references as never,
       }));
       const { error: recErr } = await supabase.from("recommendations").insert(rows);
