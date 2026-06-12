@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { motion } from "framer-motion";
+import { motion, type Variants } from "framer-motion";
 import { ShieldCheck, ListChecks, FileSearch, ArrowRight, Sparkles } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -28,12 +28,12 @@ export const Route = createFileRoute("/")({
   component: Landing,
 });
 
-const fadeUp = {
+const fadeUp: Variants = {
   hidden: { opacity: 0, y: 24 },
   show: (i: number = 0) => ({
     opacity: 1,
     y: 0,
-    transition: { duration: 0.7, ease: [0.16, 1, 0.3, 1], delay: i * 0.08 },
+    transition: { duration: 0.7, ease: [0.16, 1, 0.3, 1] as const, delay: i * 0.08 },
   }),
 };
 
