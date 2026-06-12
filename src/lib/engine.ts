@@ -1,7 +1,5 @@
 // Deterministic guardrail engine (Phase 1).
 // Runs on the server inside a serverFn. No AI, no vector search.
-// Inputs: confirmed medications + patient context + safety_rules.
-// Output: ranked recommendation cards.
 
 export type PatientCtx = {
   age: number | null;
@@ -13,6 +11,7 @@ export type PatientCtx = {
   symptoms: string;
   counselling_goal: string;
   existing_supplements: string;
+  pathology_notes: string;
   confirmed_medications: Array<{ generic_name: string; brand_name?: string; drug_class?: string | null }>;
 };
 
@@ -30,8 +29,10 @@ export type SafetyRuleRow = {
   review_required: boolean;
 };
 
+export type RecType = "safety_caution" | "administration" | "review_required" | "counselling_prompt" | "product_discussion";
+
 export type GeneratedRec = {
-  recommendation_type: "safety_caution" | "administration" | "review_required" | "counselling_prompt" | "product_discussion";
+  recommendation_type: RecType;
   title: string;
   product_name?: string;
   brand?: string;
@@ -48,19 +49,19 @@ export type GeneratedRec = {
   source_references: Array<{ source: string; tier_label: string; note: string }>;
 };
 
-const TYPE_BASE_SCORE = {
+const TYPE_BASE_SCORE: Record<RecType, number> = {
   safety_caution: 900,
   administration: 800,
   review_required: 700,
   counselling_prompt: 500,
   product_discussion: 300,
-} as const;
+};
 
-const TYPE_ORDER = ["safety_caution", "administration", "review_required", "counselling_prompt", "product_discussion"] as const;
+const TYPE_ORDER: RecType[] = ["safety_caution", "administration", "review_required", "counselling_prompt", "product_discussion"];
 
 export function detectPatientFactors(ctx: PatientCtx): string[] {
   const factors: string[] = [];
-  const hist = (ctx.medical_history + " " + ctx.symptoms + " " + ctx.pathology_notes_safe()).toLowerCase();
+  const hist = (ctx.medical_history + " " + ctx.symptoms + " " + ctx.pathology_notes).toLowerCase();
   if (ctx.age !== null && ctx.age >= 65) factors.push("elderly");
   if (ctx.age !== null && ctx.age < 12) factors.push("child");
   if (ctx.confirmed_medications.length >= 5) factors.push("polypharmacy");
@@ -74,13 +75,9 @@ export function detectPatientFactors(ctx: PatientCtx): string[] {
   if (ctx.allergies && !/^(nkda|nil|none|no)/i.test(ctx.allergies.trim())) factors.push("allergy_risk");
 
   const classes = ctx.confirmed_medications.map((m) => (m.drug_class ?? "").toLowerCase());
-  const hasBleeding = classes.some((c) => /anticoagulant|antiplatelet/.test(c));
-  if (hasBleeding) factors.push("bleeding_risk");
+  if (classes.some((c) => /anticoagulant|antiplatelet/.test(c))) factors.push("bleeding_risk");
+  if (classes.some((c) => /thyroid|quinolone|tetracycline|bisphosphonate/.test(c))) factors.push("mineral_timing_risk");
 
-  const hasMineralTimingDrug = classes.some((c) => /thyroid|quinolone|tetracycline|bisphosphonate/.test(c));
-  if (hasMineralTimingDrug) factors.push("mineral_timing_risk");
-
-  // Existing supplement duplication
   const existing = ctx.existing_supplements.toLowerCase();
   const mineralWords = ["magnesium", "calcium", "iron", "zinc", "vitamin d", "fish oil", "omega"];
   if (mineralWords.some((w) => existing.includes(w))) factors.push("existing_supplement_duplication");
@@ -88,11 +85,7 @@ export function detectPatientFactors(ctx: PatientCtx): string[] {
   return Array.from(new Set(factors));
 }
 
-// Patch the missing helper above
-declare module "./engine" {}
-
-// Cards: factor → product/topic keyword associations for symptom-driven prompts.
-const SYMPTOM_MAP: Array<{ keywords: string[]; topic: string; suggestionTitle: string; talking: string[]; checks: string[]; tags: string[] }> = [
+const SYMPTOM_MAP: Array<{ keywords: string[]; topic: string; suggestionTitle: string; talking: string[]; checks: string[] }> = [
   {
     keywords: ["cramp", "muscle ach", "leg cramp"],
     topic: "magnesium",
@@ -107,7 +100,6 @@ const SYMPTOM_MAP: Array<{ keywords: string[]; topic: string; suggestionTitle: s
       "Check current diuretic/PPI use that may affect electrolytes",
       "Rule out statin-related muscle symptoms before attributing to deficiency",
     ],
-    tags: ["magnesium"],
   },
   {
     keywords: ["fatigue", "tired", "low energy"],
@@ -122,7 +114,6 @@ const SYMPTOM_MAP: Array<{ keywords: string[]; topic: string; suggestionTitle: s
       "Ask about sleep quality and mood",
       "Check for medication-related fatigue (beta blockers, antihistamines, opioids)",
     ],
-    tags: ["iron", "b12"],
   },
   {
     keywords: ["reflux", "heartburn", "indigestion"],
@@ -134,20 +125,17 @@ const SYMPTOM_MAP: Array<{ keywords: string[]; topic: string; suggestionTitle: s
       "If already on a PPI, check dosing and whether a deprescribing trial is appropriate.",
     ],
     checks: ["Confirm symptom duration and red flags (weight loss, dysphagia)", "Review current acid-suppression therapy"],
-    tags: ["reflux"],
   },
 ];
 
 export function runEngine(ctx: PatientCtx, rules: SafetyRuleRow[]): GeneratedRec[] {
   const factors = detectPatientFactors(ctx);
   const classes = new Set(ctx.confirmed_medications.map((m) => (m.drug_class ?? "").toLowerCase()).filter(Boolean));
-  // Expand class buckets (e.g. ace_inhibitor+diuretic → ace_inhibitor, diuretic)
   const expandedClasses = new Set<string>();
   for (const c of classes) c.split(/[+/]/).forEach((p) => expandedClasses.add(p.trim()));
 
   const recs: GeneratedRec[] = [];
 
-  // 1. Fire matching safety_rules
   for (const rule of rules) {
     const classMatch = rule.trigger_drug_classes.some((tc) => Array.from(expandedClasses).some((c) => c.includes(tc) || tc.includes(c)));
     const factorMatch = rule.trigger_patient_factors.some((f) => factors.includes(f));
@@ -156,8 +144,9 @@ export function runEngine(ctx: PatientCtx, rules: SafetyRuleRow[]): GeneratedRec
     if (rule.rule_id === "elderly_falls_awareness" && !factors.includes("elderly")) continue;
     if (rule.rule_id === "polypharmacy_awareness" && !factors.includes("polypharmacy")) continue;
     if (rule.rule_id === "duplication_caution" && !factors.includes("existing_supplement_duplication")) continue;
+    if (rule.rule_id === "renal_mineral_caution" && !factors.includes("renal_disease")) continue;
 
-    const type = (rule.recommendation_type as GeneratedRec["recommendation_type"]) ?? "review_required";
+    const type = (rule.recommendation_type as RecType) ?? "review_required";
     const matchedMeds = ctx.confirmed_medications
       .filter((m) => rule.trigger_drug_classes.some((tc) => (m.drug_class ?? "").toLowerCase().includes(tc)))
       .map((m) => m.generic_name);
@@ -177,22 +166,17 @@ export function runEngine(ctx: PatientCtx, rules: SafetyRuleRow[]): GeneratedRec
         : [],
       matched_medicines: matchedMeds,
       matched_patient_factors: rule.trigger_patient_factors.filter((f) => factors.includes(f)),
-      source_references: [
-        { source: "PharmaPrompt safety ruleset", tier_label: "Built-in safety rule", note: rule.rule_id },
-      ],
+      source_references: [{ source: "PharmaPrompt safety ruleset", tier_label: "Built-in safety rule", note: rule.rule_id }],
     });
   }
 
-  // 2. Symptom-driven counselling prompts (only if not blocked by pregnancy)
   const symptomBlob = (ctx.symptoms + " " + ctx.counselling_goal).toLowerCase();
   const pregBlock = factors.includes("pregnancy") || factors.includes("breastfeeding");
 
   for (const map of SYMPTOM_MAP) {
     if (!map.keywords.some((k) => symptomBlob.includes(k))) continue;
-
     if (map.topic === "magnesium" && pregBlock) continue;
 
-    // Magnesium suggestion downgraded if bleeding or renal
     let confidence: GeneratedRec["confidence"] = "Medium";
     const extraChecks: string[] = [];
     if (map.topic === "magnesium") {
@@ -209,29 +193,25 @@ export function runEngine(ctx: PatientCtx, rules: SafetyRuleRow[]): GeneratedRec
       }
     }
 
+    const recType: RecType = map.topic === "reflux_counselling" || map.topic === "iron_b12" ? "counselling_prompt" : "product_discussion";
     recs.push({
-      recommendation_type: map.topic === "reflux_counselling" || map.topic === "iron_b12" ? "counselling_prompt" : "product_discussion",
+      recommendation_type: recType,
       title: map.suggestionTitle,
       product_name: map.topic === "magnesium" ? "Magnesium (generic)" : undefined,
       confidence,
-      score: TYPE_BASE_SCORE[map.topic === "reflux_counselling" || map.topic === "iron_b12" ? "counselling_prompt" : "product_discussion"] + 60,
+      score: TYPE_BASE_SCORE[recType] + 60,
       rank: 0,
-      why_triggered: `Symptom/goal mentioned: ${map.keywords.find((k) => symptomBlob.includes(k))}`,
+      why_triggered: `Symptom or goal mentioned: "${map.keywords.find((k) => symptomBlob.includes(k))}"`,
       pharmacist_checks: [...map.checks, ...extraChecks],
       talking_points: map.talking,
       safety_cautions: [],
       interaction_notes: [],
       matched_medicines: [],
       matched_patient_factors: factors.filter((f) => f !== "allergy_risk"),
-      source_references: [
-        { source: "PharmaPrompt symptom map", tier_label: "Built-in counselling prompt", note: map.topic },
-      ],
+      source_references: [{ source: "PharmaPrompt symptom map", tier_label: "Built-in counselling prompt", note: map.topic }],
     });
   }
 
-  // 3. Polypharmacy / elderly awareness prompts (already covered by rules above if matched)
-
-  // 4. Allergy check appended to every product discussion if allergy_risk
   if (factors.includes("allergy_risk")) {
     for (const r of recs) {
       if (r.recommendation_type === "product_discussion") {
@@ -240,7 +220,6 @@ export function runEngine(ctx: PatientCtx, rules: SafetyRuleRow[]): GeneratedRec
     }
   }
 
-  // 5. Sort by score, then by type order
   recs.sort((a, b) => {
     const ti = TYPE_ORDER.indexOf(a.recommendation_type) - TYPE_ORDER.indexOf(b.recommendation_type);
     if (ti !== 0) return ti;
@@ -250,15 +229,3 @@ export function runEngine(ctx: PatientCtx, rules: SafetyRuleRow[]): GeneratedRec
 
   return recs;
 }
-
-// Helper attached to PatientCtx via prototype is awkward — provide a util instead.
-declare global {
-  interface Object {
-    pathology_notes_safe?(): string;
-  }
-}
-
-// Implement on PatientCtx-like via plain helper used above
-(Object.prototype as any).pathology_notes_safe = function () {
-  return (this as any).pathology_notes ?? "";
-};
