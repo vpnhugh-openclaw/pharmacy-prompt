@@ -9,7 +9,7 @@ export const Route = createFileRoute("/_authenticated/app/rules")({
 
 function RulesPage() {
   const fn = useServerFn(listSafetyRulesFn);
-  const { data } = useQuery({ queryKey: ["rules"], queryFn: () => fn({ data: undefined as never }) });
+  const { data } = useQuery({ queryKey: ["rules"], queryFn: () => fn() });
   return (
     <div className="px-8 py-10 max-w-4xl mx-auto">
       <h1 className="text-2xl font-display font-medium">Safety rules</h1>

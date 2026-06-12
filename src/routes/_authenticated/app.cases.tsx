@@ -9,7 +9,7 @@ export const Route = createFileRoute("/_authenticated/app/cases")({
 
 function CasesPage() {
   const fn = useServerFn(listCasesFn);
-  const { data } = useQuery({ queryKey: ["cases"], queryFn: () => fn({ data: undefined as never }) });
+  const { data } = useQuery({ queryKey: ["cases"], queryFn: () => fn() });
   return (
     <div className="px-8 py-10 max-w-4xl mx-auto">
       <h1 className="text-2xl font-display font-medium">Past reviews</h1>

@@ -22,7 +22,7 @@ function ReviewWizard() {
   const createCase = useServerFn(createCaseFn);
   const { data: dict } = useQuery({
     queryKey: ["dictionary"],
-    queryFn: () => getDict({ data: undefined as never }),
+    queryFn: () => getDict(),
   });
 
   const [step, setStep] = useState<Step>(1);

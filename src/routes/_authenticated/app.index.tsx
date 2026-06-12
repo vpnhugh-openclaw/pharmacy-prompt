@@ -12,7 +12,7 @@ function HomePage() {
   const fetchCases = useServerFn(listCasesFn);
   const { data: cases } = useQuery({
     queryKey: ["cases", "recent"],
-    queryFn: () => fetchCases({ data: undefined as never }),
+    queryFn: () => fetchCases(),
   });
 
   return (
