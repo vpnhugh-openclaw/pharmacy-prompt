@@ -221,7 +221,17 @@ function CaseResults() {
   );
 }
 
-function RecCard({ r }: { r: RecRow }) {
+function RecCard({
+  r,
+  caseId,
+  latestStatus,
+  latestNotes,
+}: {
+  r: RecRow;
+  caseId: string;
+  latestStatus: FeedbackStatus | null;
+  latestNotes: string | null;
+}) {
   const meta = TYPE_META[r.recommendation_type] ?? TYPE_META.review_required;
   const Icon = meta.icon;
   const isSafety = r.recommendation_type === "safety_caution";
