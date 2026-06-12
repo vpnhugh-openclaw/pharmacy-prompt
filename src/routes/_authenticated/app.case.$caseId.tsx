@@ -117,6 +117,8 @@ function CaseResults() {
         <Meta k="Supplements" v={p.existing_supplements || "—"} />
       </div>
 
+      {senseCheck && <SenseCheckBanner sc={senseCheck} />}
+
       {recs.length === 0 && (
         <div className="mt-8 pp-glass p-6">
           <p className="text-sm">
