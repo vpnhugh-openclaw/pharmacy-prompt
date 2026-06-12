@@ -28,17 +28,14 @@ type RawChunk = {
   text: string;
 };
 
-async function assertAdmin(ctx: { supabase: unknown; userId: string }) {
-  const supabase = ctx.supabase as {
-    rpc: (
-      fn: "has_role",
-      args: { _user_id: string; _role: "admin" | "pharmacist" },
-    ) => Promise<{ data: boolean | null; error: { message: string } | null }>;
-  };
-  const { data, error } = await supabase.rpc("has_role", {
-    _user_id: ctx.userId,
-    _role: "admin",
-  });
+async function assertAdmin(userId: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId)
+    .eq("role", "admin")
+    .maybeSingle();
   if (error) throw new Error("Authorization check failed");
   if (!data) throw new Error("Forbidden: admin role required");
 }
