@@ -39,6 +39,8 @@ type RecRow = {
   product_name: string | null;
   brand: string | null;
   confidence: string;
+  confidence_score: number | null;
+  severity_tier: string | null;
   rank: number;
   why_triggered: string | null;
   pharmacist_checks: unknown;
@@ -48,7 +50,34 @@ type RecRow = {
   matched_medicines: unknown;
   matched_patient_factors: unknown;
   matched_product_tags: unknown;
+  matched_factors: unknown;
   source_references: unknown;
+  mechanism: string | null;
+  advice: string | null;
+  safety_net: string | null;
+  alternatives: unknown;
+  onset: string | null;
+};
+
+type SeverityTier = "contraindicated" | "major" | "moderate" | "minor";
+
+const SEVERITY_BADGE: Record<SeverityTier, { label: string; classes: string }> = {
+  contraindicated: {
+    label: "Contraindicated",
+    classes: "bg-signal/10 text-signal border-signal/30",
+  },
+  major: {
+    label: "Major",
+    classes: "bg-signal/10 text-signal border-signal/30",
+  },
+  moderate: {
+    label: "Moderate",
+    classes: "bg-amber-500/10 text-amber-700 border-amber-500/30 dark:text-amber-400",
+  },
+  minor: {
+    label: "Minor",
+    classes: "bg-foreground/5 text-muted-foreground border-foreground/15",
+  },
 };
 
 const TYPE_META: Record<string, { label: string; icon: typeof ShieldAlert; tone: string }> = {
@@ -58,6 +87,8 @@ const TYPE_META: Record<string, { label: string; icon: typeof ShieldAlert; tone:
   counselling_prompt: { label: "Counselling prompt", icon: MessageSquare, tone: "accent" },
   product_discussion: { label: "Product discussion", icon: Pill, tone: "muted" },
   product_recommendation: { label: "Recommended product", icon: Sparkles, tone: "accent" },
+  red_flag: { label: "Red flag — refer", icon: Flag, tone: "signal" },
+  otc_interaction: { label: "OTC × prescribed interaction", icon: ShieldAlert, tone: "signal" },
 };
 
 function asArr(v: unknown): string[] {
@@ -269,10 +300,45 @@ function RecCard({
                 </p>
               )}
             </div>
-            <span className="pp-chip text-[11px]">{r.confidence} confidence</span>
+            <div className="flex items-center gap-1.5 shrink-0">
+              {r.severity_tier && SEVERITY_BADGE[r.severity_tier as SeverityTier] && (
+                <span
+                  className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider ${SEVERITY_BADGE[r.severity_tier as SeverityTier].classes}`}
+                  title={`Severity: ${SEVERITY_BADGE[r.severity_tier as SeverityTier].label}`}
+                >
+                  {SEVERITY_BADGE[r.severity_tier as SeverityTier].label}
+                </span>
+              )}
+              <span className="pp-chip text-[11px]">
+                {r.confidence} confidence
+                {typeof r.confidence_score === "number" ? ` · ${r.confidence_score}` : ""}
+              </span>
+            </div>
           </div>
           {r.why_triggered && (
             <p className="mt-1.5 text-sm text-muted-foreground">{r.why_triggered}</p>
+          )}
+
+          {r.advice && (
+            <div className="mt-3 rounded-md border border-accent/20 bg-accent/5 p-3">
+              <p className="text-[11px] uppercase tracking-wider text-accent font-medium">Advice</p>
+              <p className="mt-1 text-sm">{r.advice}</p>
+            </div>
+          )}
+
+          {r.safety_net && (
+            <div className="mt-2 rounded-md border border-amber-500/20 bg-amber-500/5 p-3">
+              <p className="text-[11px] uppercase tracking-wider text-amber-700 dark:text-amber-400 font-medium">
+                Safety net
+              </p>
+              <p className="mt-1 text-sm">{r.safety_net}</p>
+            </div>
+          )}
+
+          {r.mechanism && (
+            <p className="mt-2 text-xs text-muted-foreground italic">
+              Mechanism: {r.mechanism}
+            </p>
           )}
 
           {asArr(r.talking_points).length > 0 && (
@@ -310,6 +376,37 @@ function RecCard({
                 {asArr(r.interaction_notes).map((t, i) => (
                   <li key={i}>{t}</li>
                 ))}
+              </ul>
+            </div>
+          )}
+
+          {asArr(r.alternatives).length > 0 && (
+            <div className="mt-3">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                Alternatives the pharmacist can offer
+              </p>
+              <ul className="mt-1.5 text-sm space-y-2">
+                {asArr(r.alternatives).map((t, i) => {
+                  const obj =
+                    typeof t === "object" && t !== null
+                      ? (t as { product_name?: string; rationale?: string })
+                      : null;
+                  return (
+                    <li
+                      key={i}
+                      className="rounded-md border border-foreground/10 bg-foreground/[0.02] px-3 py-2"
+                    >
+                      {obj?.product_name ? (
+                        <p className="font-medium">{obj.product_name}</p>
+                      ) : (
+                        <p className="font-medium">{String(t)}</p>
+                      )}
+                      {obj?.rationale && (
+                        <p className="mt-0.5 text-xs text-muted-foreground">{obj.rationale}</p>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           )}

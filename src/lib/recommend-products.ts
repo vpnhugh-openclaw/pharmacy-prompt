@@ -14,6 +14,7 @@
 //   4. Score = matched tag count * 20 + 400 base.
 //   5. Output: product_recommendation records ready to be rendered in the case UI.
 import type { SafetyRuleRow, PatientCtx } from "./engine";
+import { buildRationale, type Rationale, type SeverityTier, type EvidenceLevel } from "./rationale";
 
 export type ProductRow = {
   product_id: string;
@@ -52,6 +53,9 @@ export type ProductRecommendation = {
   matched_patient_factors: string[];
   matched_product_tags: string[];
   source_references: Array<{ source: string; tier_label: string; note: string }>;
+  rationale: Rationale;
+  severity_tier: SeverityTier;
+  confidence_score: number;
 };
 
 export type DrugClassTagMap = Record<string, string[]>;
@@ -440,6 +444,22 @@ export function recommendProducts(
           note: product.product_id,
         },
       ],
+      rationale: buildRationale({
+        ruleId: `product:${product.product_id}`,
+        severity: "minor",
+        evidence: "moderate",
+        source: "curated",
+        matchedFactors: matchedTags.map((t) => ({
+          factor: "indication" as const,
+          value: t,
+          matched: true,
+        })),
+        advice: `Consider ${product.name} as a pharmacist-reviewed option.`,
+        safetyNet: "Return if symptoms persist or new symptoms develop.",
+        mechanism: "clinical",
+      }),
+      severity_tier: "minor",
+      confidence_score: 50,
     });
   }
 

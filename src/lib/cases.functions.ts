@@ -239,6 +239,15 @@ export const createCaseFn = createServerFn({ method: "POST" })
         matched_patient_factors: r.matched_patient_factors as never,
         matched_product_tags: r.matched_product_tags ?? ([] as string[] as never),
         source_references: r.source_references as never,
+        // Phase 6 structured rationale
+        severity_tier: r.severity_tier,
+        confidence_score: r.confidence_score,
+        matched_factors: (r.rationale?.matchedFactors ?? []) as never,
+        mechanism: r.rationale?.mechanism ?? null,
+        advice: r.rationale?.advice ?? null,
+        safety_net: r.rationale?.safetyNet ?? null,
+        alternatives: (r.rationale?.alternatives ?? []) as never,
+        onset: r.rationale?.onset ?? null,
       }));
       const { error: recErr } = await supabase.from("recommendations").insert(rows);
       if (recErr) throw new Error(recErr.message);
