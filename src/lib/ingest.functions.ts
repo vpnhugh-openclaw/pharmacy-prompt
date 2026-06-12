@@ -1,7 +1,9 @@
 // Phase 2 — ingestion of pharma_kb_unified shards from the kb-source bucket.
 // Each call processes ONE shard so the worker stays under the request timeout.
 // Uses the admin client to bypass RLS for the kb_chunks insert.
+// SECURITY: All admin/ingestion endpoints require the caller to have the 'admin' role.
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 type RawChunk = {
@@ -26,9 +28,25 @@ type RawChunk = {
   text: string;
 };
 
+async function assertAdmin(ctx: { supabase: { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }> }; userId: string }) {
+  const { data, error } = await ctx.supabase.rpc("has_role", {
+    _user_id: ctx.userId,
+    _role: "admin",
+  });
+  if (error) throw new Error("Authorization check failed");
+  if (!data) throw new Error("Forbidden: admin role required");
+}
+
+const JobIdSchema = z.object({ jobId: z.string().uuid() });
+const SearchSchema = z.object({
+  query: z.string().min(1).max(500),
+  limit: z.number().int().min(1).max(50).optional(),
+});
+
 export const getIngestionStatusFn = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async () => {
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data, error } = await supabaseAdmin
       .from("ingestion_jobs")
@@ -43,8 +61,9 @@ export const getIngestionStatusFn = createServerFn({ method: "GET" })
 
 export const ingestShardFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { jobId: string }) => d)
-  .handler(async ({ data }) => {
+  .inputValidator((d: unknown) => JobIdSchema.parse(d))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const { data: job, error: jobErr } = await supabaseAdmin
@@ -66,7 +85,6 @@ export const ingestShardFn = createServerFn({ method: "POST" })
     const padded = String(shardIndex).padStart(2, "0");
     const objectPath = `${job.shard_prefix}${padded}.jsonl`;
 
-    // Get a signed URL we can stream from inside the worker.
     const { data: signed, error: signedErr } = await supabaseAdmin.storage
       .from(job.bucket)
       .createSignedUrl(objectPath, 600);
@@ -150,12 +168,11 @@ export const ingestShardFn = createServerFn({ method: "POST" })
 
 export const searchKbFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { query: string; limit?: number }) => d)
+  .inputValidator((d: unknown) => SearchSchema.parse(d))
   .handler(async ({ data, context }) => {
-    const q = (data.query ?? "").trim();
+    const q = data.query.trim();
     if (!q) return { results: [] };
     const limit = Math.min(Math.max(data.limit ?? 20, 1), 50);
-    // Use websearch_to_tsquery via RPC-less textSearch helper.
     const { data: rows, error } = await context.supabase
       .from("kb_chunks")
       .select("chunk_id, source, source_name, source_tier, title, section_heading, source_url, text, topic_area")
@@ -168,8 +185,9 @@ export const searchKbFn = createServerFn({ method: "POST" })
 
 export const resetIngestionFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { jobId: string }) => d)
-  .handler(async ({ data }) => {
+  .inputValidator((d: unknown) => JobIdSchema.parse(d))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     await supabaseAdmin
       .from("ingestion_jobs")
