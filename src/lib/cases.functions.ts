@@ -64,18 +64,29 @@ export const getCaseFn = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { caseId: string }) => d)
   .handler(async ({ data, context }) => {
-    const [caseRes, recsRes] = await Promise.all([
+    const [caseRes, recsRes, auditRes] = await Promise.all([
       context.supabase.from("patient_cases").select("*").eq("case_id", data.caseId).maybeSingle(),
       context.supabase
         .from("recommendations")
         .select("*")
         .eq("case_id", data.caseId)
         .order("rank", { ascending: true }),
+      context.supabase
+        .from("sense_check_audits")
+        .select("status, model, applied_changes, rejected_changes, error_message, latency_ms, raw_response, created_at")
+        .eq("case_id", data.caseId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
     ]);
     if (caseRes.error) throw new Error(caseRes.error.message);
     if (recsRes.error) throw new Error(recsRes.error.message);
     if (!caseRes.data) throw new Error("Case not found");
-    return { patientCase: caseRes.data, recommendations: recsRes.data ?? [] };
+    return {
+      patientCase: caseRes.data,
+      recommendations: recsRes.data ?? [],
+      senseCheck: auditRes.data ?? null,
+    };
   });
 
 export const createCaseFn = createServerFn({ method: "POST" })
