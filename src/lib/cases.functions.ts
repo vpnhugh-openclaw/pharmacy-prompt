@@ -169,5 +169,23 @@ export const createCaseFn = createServerFn({ method: "POST" })
       if (recErr) throw new Error(recErr.message);
     }
 
+    await supabase.from("sense_check_audits").insert({
+      case_id: caseRow.case_id,
+      user_id: userId,
+      model: sense.model,
+      status: sense.status,
+      input_summary: {
+        age: ctx.age,
+        sex: ctx.sex,
+        medication_count: ctx.confirmed_medications.length,
+        rec_count: baseRecs.length,
+      } as never,
+      raw_response: (sense.overall_note ? { overall_note: sense.overall_note } : null) as never,
+      applied_changes: sense.applied as never,
+      rejected_changes: sense.rejected as never,
+      error_message: sense.error ?? null,
+      latency_ms: sense.latency_ms,
+    });
+
     return { case_id: caseRow.case_id };
   });
