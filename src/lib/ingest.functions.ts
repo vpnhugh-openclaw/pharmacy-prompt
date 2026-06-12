@@ -28,13 +28,14 @@ type RawChunk = {
 
 export const getIngestionStatusFn = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { data, error } = await context.supabase
+  .handler(async () => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await supabaseAdmin
       .from("ingestion_jobs")
       .select("*")
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
-    const { count } = await context.supabase
+    const { count } = await supabaseAdmin
       .from("kb_chunks")
       .select("*", { count: "exact", head: true });
     return { jobs: data ?? [], total_chunks: count ?? 0 };
