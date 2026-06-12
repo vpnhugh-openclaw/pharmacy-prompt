@@ -13,6 +13,11 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
+import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app.index'
+import { Route as AuthenticatedAppRulesRouteImport } from './routes/_authenticated/app.rules'
+import { Route as AuthenticatedAppReviewRouteImport } from './routes/_authenticated/app.review'
+import { Route as AuthenticatedAppCasesRouteImport } from './routes/_authenticated/app.cases'
+import { Route as AuthenticatedAppCaseCaseIdRouteImport } from './routes/_authenticated/app.case.$caseId'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -33,30 +38,95 @@ const AuthenticatedAppRoute = AuthenticatedAppRouteImport.update({
   path: '/app',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAppIndexRoute = AuthenticatedAppIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppRulesRoute = AuthenticatedAppRulesRouteImport.update({
+  id: '/rules',
+  path: '/rules',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppReviewRoute = AuthenticatedAppReviewRouteImport.update({
+  id: '/review',
+  path: '/review',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppCasesRoute = AuthenticatedAppCasesRouteImport.update({
+  id: '/cases',
+  path: '/cases',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppCaseCaseIdRoute =
+  AuthenticatedAppCaseCaseIdRouteImport.update({
+    id: '/case/$caseId',
+    path: '/case/$caseId',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
-  '/app': typeof AuthenticatedAppRoute
+  '/app': typeof AuthenticatedAppRouteWithChildren
+  '/app/cases': typeof AuthenticatedAppCasesRoute
+  '/app/review': typeof AuthenticatedAppReviewRoute
+  '/app/rules': typeof AuthenticatedAppRulesRoute
+  '/app/': typeof AuthenticatedAppIndexRoute
+  '/app/case/$caseId': typeof AuthenticatedAppCaseCaseIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
-  '/app': typeof AuthenticatedAppRoute
+  '/app/cases': typeof AuthenticatedAppCasesRoute
+  '/app/review': typeof AuthenticatedAppReviewRoute
+  '/app/rules': typeof AuthenticatedAppRulesRoute
+  '/app': typeof AuthenticatedAppIndexRoute
+  '/app/case/$caseId': typeof AuthenticatedAppCaseCaseIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
-  '/_authenticated/app': typeof AuthenticatedAppRoute
+  '/_authenticated/app': typeof AuthenticatedAppRouteWithChildren
+  '/_authenticated/app/cases': typeof AuthenticatedAppCasesRoute
+  '/_authenticated/app/review': typeof AuthenticatedAppReviewRoute
+  '/_authenticated/app/rules': typeof AuthenticatedAppRulesRoute
+  '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
+  '/_authenticated/app/case/$caseId': typeof AuthenticatedAppCaseCaseIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/app'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/app'
+    | '/app/cases'
+    | '/app/review'
+    | '/app/rules'
+    | '/app/'
+    | '/app/case/$caseId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/app'
-  id: '__root__' | '/' | '/_authenticated' | '/auth' | '/_authenticated/app'
+  to:
+    | '/'
+    | '/auth'
+    | '/app/cases'
+    | '/app/review'
+    | '/app/rules'
+    | '/app'
+    | '/app/case/$caseId'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/auth'
+    | '/_authenticated/app'
+    | '/_authenticated/app/cases'
+    | '/_authenticated/app/review'
+    | '/_authenticated/app/rules'
+    | '/_authenticated/app/'
+    | '/_authenticated/app/case/$caseId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -95,15 +165,69 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/app/': {
+      id: '/_authenticated/app/'
+      path: '/'
+      fullPath: '/app/'
+      preLoaderRoute: typeof AuthenticatedAppIndexRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/rules': {
+      id: '/_authenticated/app/rules'
+      path: '/rules'
+      fullPath: '/app/rules'
+      preLoaderRoute: typeof AuthenticatedAppRulesRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/review': {
+      id: '/_authenticated/app/review'
+      path: '/review'
+      fullPath: '/app/review'
+      preLoaderRoute: typeof AuthenticatedAppReviewRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/cases': {
+      id: '/_authenticated/app/cases'
+      path: '/cases'
+      fullPath: '/app/cases'
+      preLoaderRoute: typeof AuthenticatedAppCasesRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/case/$caseId': {
+      id: '/_authenticated/app/case/$caseId'
+      path: '/case/$caseId'
+      fullPath: '/app/case/$caseId'
+      preLoaderRoute: typeof AuthenticatedAppCaseCaseIdRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
   }
 }
 
+interface AuthenticatedAppRouteChildren {
+  AuthenticatedAppCasesRoute: typeof AuthenticatedAppCasesRoute
+  AuthenticatedAppReviewRoute: typeof AuthenticatedAppReviewRoute
+  AuthenticatedAppRulesRoute: typeof AuthenticatedAppRulesRoute
+  AuthenticatedAppIndexRoute: typeof AuthenticatedAppIndexRoute
+  AuthenticatedAppCaseCaseIdRoute: typeof AuthenticatedAppCaseCaseIdRoute
+}
+
+const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
+  AuthenticatedAppCasesRoute: AuthenticatedAppCasesRoute,
+  AuthenticatedAppReviewRoute: AuthenticatedAppReviewRoute,
+  AuthenticatedAppRulesRoute: AuthenticatedAppRulesRoute,
+  AuthenticatedAppIndexRoute: AuthenticatedAppIndexRoute,
+  AuthenticatedAppCaseCaseIdRoute: AuthenticatedAppCaseCaseIdRoute,
+}
+
+const AuthenticatedAppRouteWithChildren =
+  AuthenticatedAppRoute._addFileChildren(AuthenticatedAppRouteChildren)
+
 interface AuthenticatedRouteRouteChildren {
-  AuthenticatedAppRoute: typeof AuthenticatedAppRoute
+  AuthenticatedAppRoute: typeof AuthenticatedAppRouteWithChildren
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
-  AuthenticatedAppRoute: AuthenticatedAppRoute,
+  AuthenticatedAppRoute: AuthenticatedAppRouteWithChildren,
 }
 
 const AuthenticatedRouteRouteWithChildren =
@@ -117,3 +241,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
