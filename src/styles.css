@@ -1,6 +1,8 @@
 @import "tailwindcss" source(none);
-@source "../src";
 @import "tw-animate-css";
+@import url('https://fonts.googleapis.com/css2?family=Raleway:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
+@source "../src";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -8,8 +10,6 @@
  * Display: Raleway. Body: Inter.
  * Calm clinical palette. Signal red reserved EXCLUSIVELY for safety cautions.
  */
-
-@import url('https://fonts.googleapis.com/css2?family=Raleway:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
 
 @theme inline {
   --font-display: "Raleway", ui-sans-serif, system-ui, sans-serif;
