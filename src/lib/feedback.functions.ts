@@ -1,8 +1,19 @@
 // Phase 5 — pharmacist feedback + queue + export.
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export type FeedbackStatus = "accepted" | "modified" | "declined" | "escalated";
+
+const FeedbackStatusSchema = z.enum(["accepted", "modified", "declined", "escalated"]);
+const SubmitFeedbackSchema = z.object({
+  case_id: z.string().uuid(),
+  recommendation_id: z.string().uuid(),
+  status: FeedbackStatusSchema,
+  notes: z.string().max(5_000).optional(),
+});
+const RecIdSchema = z.object({ recommendation_id: z.string().uuid() });
+const CaseIdSchema = z.object({ caseId: z.string().uuid() });
 
 export const submitFeedbackFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
