@@ -25,11 +25,20 @@ import {
   X,
   Flag,
   Download,
+  ChevronDown,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/app/case/$caseId")({
   component: CaseResults,
 });
+
+type FeedbackRow = {
+  feedback_id: string;
+  recommendation_id: string | null;
+  status: string;
+  notes: string | null;
+  created_at: string;
+};
 
 type RecRow = {
   recommendation_id: string;
@@ -98,6 +107,71 @@ function asArr(v: unknown): string[] {
 type SourceRef = { source: string; tier_label: string; note: string; url?: string };
 function asRefs(v: unknown): SourceRef[] {
   return Array.isArray(v) ? (v as SourceRef[]) : [];
+}
+
+// -----------------------------------------------------------------------
+// Problem 3 — report tidy
+// -----------------------------------------------------------------------
+// 1. The 4 "Pharmacist checks" on every product_recommendation card
+//    are byte-identical (see recommend-products.ts lines 485-490).
+//    Instead of repeating them on every card, render them once as a
+//    shared header banner. The standard safety net ("Return if
+//    symptoms persist or new symptoms develop") is also identical
+//    across product recs and is collapsed into the same banner.
+// 2. Talking points frequently duplicate the Advice line and repeat
+//    the same bullet twice. De-dupe against advice + self-dedupe
+//    (case-insensitive). Hide the section when nothing left.
+// 3. Interaction notes are raw tag dumps (e.g. "sertraline, pantoprazole,
+//    elderly, b12_support") — these are match debug, not counselling.
+//    Move them behind a "Why this matched" expander. The expander
+//    shows matched_product_tags + matched_medicines + matched_patient_factors
+//    (the actual match debug) and is closed by default.
+// 4. Group product_recommendation by severity (Contraindicated → Major
+//    → Moderate → Minor). When a severity bucket has 3+ items, render
+//    the Minor bucket as a compact name-only list rather than full
+//    cards.
+
+const STANDARD_PRODUCT_CHECKS = [
+  "Confirm no allergies to listed active ingredients",
+  "Cross-check with current medication list and dose",
+  "Verify patient is not already on a duplicate product",
+  "Discuss dose, timing with food/other medicines, and duration",
+];
+
+const STANDARD_PRODUCT_SAFETY_NET =
+  "Return if symptoms persist or new symptoms develop.";
+
+const SEVERITY_ORDER: SeverityTier[] = [
+  "contraindicated",
+  "major",
+  "moderate",
+  "minor",
+];
+
+/**
+ * Remove talking_points that duplicate the advice line (case-insensitive)
+ * or repeat a previous point. Returns the pruned list. Empty result
+ * means the talking-points section should be hidden entirely.
+ */
+function dedupeTalkingPoints(
+  advice: string | null | undefined,
+  talkingPoints: string[],
+): string[] {
+  if (talkingPoints.length === 0) return [];
+  const adviceNorm = (advice ?? "").trim().toLowerCase();
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of talkingPoints) {
+    const t = (raw ?? "").trim();
+    if (!t) continue;
+    const k = t.toLowerCase();
+    if (adviceNorm && k === adviceNorm) continue;
+    if (adviceNorm && k.includes(adviceNorm) && adviceNorm.length > 8) continue;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(t);
+  }
+  return out;
 }
 
 function CaseResults() {
@@ -236,27 +310,13 @@ function CaseResults() {
         {grouped.map(
           (g) =>
             g.items.length > 0 && (
-              <section key={g.type}>
-                <h2 className="text-xs uppercase tracking-[0.18em] text-muted-foreground mb-3">
-                  {TYPE_META[g.type].label}
-                </h2>
-                <div className="space-y-3">
-                  {g.items.map((r) => {
-                    const latest = (feedbackQ.data ?? []).find(
-                      (f) => f.recommendation_id === r.recommendation_id,
-                    );
-                    return (
-                      <RecCard
-                        key={r.recommendation_id}
-                        r={r}
-                        caseId={caseId}
-                        latestStatus={(latest?.status as FeedbackStatus | undefined) ?? null}
-                        latestNotes={latest?.notes ?? null}
-                      />
-                    );
-                  })}
-                </div>
-              </section>
+              <RecommendationGroup
+                key={g.type}
+                type={g.type}
+                items={g.items as RecRow[]}
+                feedback={feedbackQ.data}
+                caseId={caseId}
+              />
             ),
         )}
       </div>
@@ -269,16 +329,44 @@ function RecCard({
   caseId,
   latestStatus,
   latestNotes,
+  suppressStandardProductBoilerplate,
 }: {
   r: RecRow;
   caseId: string;
   latestStatus: FeedbackStatus | null;
   latestNotes: string | null;
+  /**
+   * When true, hide the per-card "Pharmacist checks" list and
+   * safety_net line if they match the standard product ones —
+   * the parent group renders a single shared banner instead.
+   * Used inside a product_recommendation group.
+   */
+  suppressStandardProductBoilerplate?: boolean;
 }) {
   const meta = TYPE_META[r.recommendation_type] ?? TYPE_META.review_required;
   const Icon = meta.icon;
   const isSafety = r.recommendation_type === "safety_caution";
   const isProduct = r.recommendation_type === "product_recommendation";
+
+  // De-dupe talking_points against the advice line + self-dedupe.
+  const talkingPoints = dedupeTalkingPoints(
+    r.advice,
+    asArr(r.talking_points),
+  );
+
+  // If the per-card pharmacist_checks and safety_net are the
+  // standard product ones, suppress them — the group banner
+  // covers them. For safety_cautions and other types we still
+  // render the per-card details.
+  const checks = asArr(r.pharmacist_checks);
+  const isStandardChecks =
+    checks.length === STANDARD_PRODUCT_CHECKS.length &&
+    checks.every((c) => STANDARD_PRODUCT_CHECKS.includes(c));
+  const showChecks = !(suppressStandardProductBoilerplate && isStandardChecks);
+
+  const isStandardSafetyNet =
+    (r.safety_net ?? "").trim() === STANDARD_PRODUCT_SAFETY_NET;
+  const showSafetyNet = !(suppressStandardProductBoilerplate && isStandardSafetyNet);
 
   return (
     <article
@@ -326,7 +414,7 @@ function RecCard({
             </div>
           )}
 
-          {r.safety_net && (
+          {showSafetyNet && r.safety_net && (
             <div className="mt-2 rounded-md border border-amber-500/20 bg-amber-500/5 p-3">
               <p className="text-[11px] uppercase tracking-wider text-amber-700 dark:text-amber-400 font-medium">
                 Safety net
@@ -341,39 +429,26 @@ function RecCard({
             </p>
           )}
 
-          {asArr(r.talking_points).length > 0 && (
+          {talkingPoints.length > 0 && (
             <div className="mt-3">
               <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
                 Talking points
               </p>
               <ul className="mt-1.5 text-sm space-y-1 list-disc list-inside marker:text-accent">
-                {asArr(r.talking_points).map((t, i) => (
+                {talkingPoints.map((t, i) => (
                   <li key={i}>{t}</li>
                 ))}
               </ul>
             </div>
           )}
 
-          {asArr(r.pharmacist_checks).length > 0 && (
+          {showChecks && checks.length > 0 && (
             <div className="mt-3">
               <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
                 Pharmacist checks
               </p>
               <ul className="mt-1.5 text-sm space-y-1 list-disc list-inside marker:text-foreground/40">
-                {asArr(r.pharmacist_checks).map((t, i) => (
-                  <li key={i}>{t}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {asArr(r.interaction_notes).length > 0 && (
-            <div className="mt-3 text-sm">
-              <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                Interaction notes
-              </p>
-              <ul className="mt-1.5 space-y-1">
-                {asArr(r.interaction_notes).map((t, i) => (
+                {checks.map((t, i) => (
                   <li key={i}>{t}</li>
                 ))}
               </ul>
@@ -411,28 +486,6 @@ function RecCard({
             </div>
           )}
 
-          <div className="mt-4 flex flex-wrap gap-2">
-            {asArr(r.matched_medicines).map((m, i) => (
-              <span key={i} className="pp-chip text-[11px]">
-                {m}
-              </span>
-            ))}
-            {asArr(r.matched_patient_factors).map((m, i) => (
-              <span key={i} className="pp-chip text-[11px] bg-accent/10 border-accent/20">
-                {m}
-              </span>
-            ))}
-            {isProduct &&
-              asArr(r.matched_product_tags).map((t, i) => (
-                <span
-                  key={`t${i}`}
-                  className="pp-chip text-[11px] bg-foreground/5 border-foreground/15"
-                >
-                  {t}
-                </span>
-              ))}
-          </div>
-
           {asRefs(r.source_references).length > 0 && (
             <div className="mt-4 border-t border-hairline pt-3">
               <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Sources</p>
@@ -462,6 +515,11 @@ function RecCard({
             </div>
           )}
 
+          {/* "Why this matched" expander — replaces the previous raw
+              interaction_notes tag dump. Shows the matched_* arrays
+              which are the actual match debug, closed by default. */}
+          <WhyMatchedExpander r={r} isProduct={isProduct} />
+
           <FeedbackRow
             caseId={caseId}
             recommendationId={r.recommendation_id}
@@ -471,6 +529,254 @@ function RecCard({
         </div>
       </div>
     </article>
+  );
+}
+
+// -----------------------------------------------------------------------
+// "Why this matched" expander — Problem 3
+// -----------------------------------------------------------------------
+// Replaces the previous raw `interaction_notes` tag dump. Closed by
+// default. The match-debug info is the matched_* arrays (medicines,
+// patient factors, product tags). Pharmacists who want to see WHY a
+// product fired can click to expand; patient-facing views (or quick
+// scan of the report) just see a compact button label.
+function WhyMatchedExpander({ r, isProduct }: { r: RecRow; isProduct: boolean }) {
+  const [open, setOpen] = useState(false);
+  const meds = asArr(r.matched_medicines);
+  const factors = asArr(r.matched_patient_factors);
+  const tags = isProduct ? asArr(r.matched_product_tags) : [];
+  const total = meds.length + factors.length + tags.length;
+  if (total === 0) return null;
+  return (
+    <div className="mt-3 no-print">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-muted-foreground hover:text-foreground"
+        aria-expanded={open}
+      >
+        <ChevronDown
+          className={`h-3 w-3 transition-transform ${open ? "rotate-0" : "-rotate-90"}`}
+        />
+        Why this matched
+        <span className="text-foreground/50 normal-case">({total})</span>
+      </button>
+      {open && (
+        <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
+          {meds.map((m, i) => (
+            <span key={`m${i}`} className="pp-chip">
+              {m}
+            </span>
+          ))}
+          {factors.map((m, i) => (
+            <span
+              key={`f${i}`}
+              className="pp-chip bg-accent/10 border-accent/20"
+            >
+              {m}
+            </span>
+          ))}
+          {tags.map((t, i) => (
+            <span
+              key={`t${i}`}
+              className="pp-chip bg-foreground/5 border-foreground/15"
+            >
+              {t}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// -----------------------------------------------------------------------
+// Recommendation group — Problem 3
+// -----------------------------------------------------------------------
+// Renders one type-bucket (e.g. all product_recommendation recs) with:
+//   - a shared header banner (the 4 standard pharmacist_checks + the
+//     standard safety net, rendered ONCE, not per card)
+//   - a sub-grouping by severity (Contraindicated → Major → Moderate →
+//     Minor), and for the Minor bucket in product_recommendation with
+//     3+ items, a compact name-only list.
+function RecommendationGroup({
+  type,
+  items,
+  feedback,
+  caseId,
+}: {
+  type: keyof typeof TYPE_META;
+  items: RecRow[];
+  feedback: FeedbackRow[] | undefined;
+  caseId: string;
+}) {
+  const isProduct = type === "product_recommendation";
+
+  // Sub-group by severity in the deterministic order
+  // (contraindicated → major → moderate → minor). Recs without a
+  // severity_tier fall into the "minor" bucket for display.
+  const buckets: Record<SeverityTier, RecRow[]> = {
+    contraindicated: [],
+    major: [],
+    moderate: [],
+    minor: [],
+  };
+  for (const r of items) {
+    const s = (r.severity_tier as SeverityTier) ?? "minor";
+    if (buckets[s]) buckets[s].push(r);
+    else buckets.minor.push(r);
+  }
+
+  // Minor product bucket with 3+ items → compact list, not full cards.
+  const minorCompact = isProduct && buckets.minor.length >= 3;
+  // Severity sub-buckets only render inside product_recommendation.
+  // For other types the cards keep the existing simple stack.
+  const showSubGroups = isProduct;
+
+  return (
+    <section>
+      <h2 className="text-xs uppercase tracking-[0.18em] text-muted-foreground mb-3">
+        {TYPE_META[type].label} · {items.length}
+      </h2>
+
+      {isProduct && (
+        <StandardProductBanner />
+      )}
+
+      {!showSubGroups ? (
+        <div className="space-y-3">
+          {items.map((r) => {
+            const latest = (feedback ?? []).find(
+              (f) => f.recommendation_id === r.recommendation_id,
+            );
+            return (
+              <RecCard
+                key={r.recommendation_id}
+                r={r}
+                caseId={caseId}
+                latestStatus={(latest?.status as FeedbackStatus | undefined) ?? null}
+                latestNotes={latest?.notes ?? null}
+              />
+            );
+          })}
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {SEVERITY_ORDER.filter(
+            (s) => buckets[s].length > 0,
+          ).map((s) => {
+            const bucket = buckets[s];
+            const compact = s === "minor" && minorCompact;
+            return (
+              <div key={s}>
+                <h3 className="text-[10px] uppercase tracking-wider text-muted-foreground/80 mb-2 flex items-center gap-2">
+                  <span>{SEVERITY_BADGE[s].label}</span>
+                  <span className="text-foreground/50">·</span>
+                  <span className="text-foreground/60">{bucket.length}</span>
+                </h3>
+                {compact ? (
+                  <CompactMinorList
+                    items={bucket}
+                    feedback={feedback}
+                    caseId={caseId}
+                  />
+                ) : (
+                  <div className="space-y-3">
+                    {bucket.map((r) => {
+                      const latest = (feedback ?? []).find(
+                        (f) => f.recommendation_id === r.recommendation_id,
+                      );
+                      return (
+                        <RecCard
+                          key={r.recommendation_id}
+                          r={r}
+                          caseId={caseId}
+                          latestStatus={(latest?.status as FeedbackStatus | undefined) ?? null}
+                          latestNotes={latest?.notes ?? null}
+                          suppressStandardProductBoilerplate
+                        />
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function StandardProductBanner() {
+  return (
+    <div className="mb-3 rounded-md border border-border/60 bg-foreground/[0.02] p-3 text-xs text-muted-foreground">
+      <p className="text-[10px] uppercase tracking-wider text-foreground/60 font-medium">
+        Standard pharmacist checks · applied to all product cards below
+      </p>
+      <ul className="mt-1.5 list-disc list-inside space-y-0.5">
+        {STANDARD_PRODUCT_CHECKS.map((c) => (
+          <li key={c}>{c}</li>
+        ))}
+      </ul>
+      <p className="mt-1.5 text-foreground/70">
+        <span className="font-medium">Safety net:</span> {STANDARD_PRODUCT_SAFETY_NET}
+      </p>
+    </div>
+  );
+}
+
+function CompactMinorList({
+  items,
+  feedback,
+  caseId,
+}: {
+  items: RecRow[];
+  feedback: FeedbackRow[] | undefined;
+  caseId: string;
+}) {
+  // Compact list = name + brand/product_id only. Click to expand a
+  // full card; an alternative would be a modal. For now we keep a
+  // single-row clickable list and lazy-render the full card below.
+  return (
+    <ul className="rounded-md border border-border/60 divide-y divide-border/40 bg-background text-sm">
+      {items.map((r) => {
+        const latest = (feedback ?? []).find(
+          (f) => f.recommendation_id === r.recommendation_id,
+        );
+        return (
+          <li key={r.recommendation_id} className="px-3 py-2">
+            <details>
+              <summary className="flex items-center justify-between gap-3 cursor-pointer list-none">
+                <span className="min-w-0 flex-1">
+                  <span className="font-medium">{r.title}</span>
+                  {r.brand && (
+                    <span className="ml-2 text-xs text-muted-foreground">{r.brand}</span>
+                  )}
+                  {r.product_id && (
+                    <span className="ml-2 text-xs font-mono text-muted-foreground/80">
+                      {r.product_id}
+                    </span>
+                  )}
+                </span>
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground shrink-0">
+                  {r.confidence}
+                </span>
+              </summary>
+              <div className="mt-3">
+                <RecCard
+                  r={r}
+                  caseId={caseId}
+                  latestStatus={(latest?.status as FeedbackStatus | undefined) ?? null}
+                  latestNotes={latest?.notes ?? null}
+                  suppressStandardProductBoilerplate
+                />
+              </div>
+            </details>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
