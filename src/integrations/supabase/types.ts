@@ -308,11 +308,15 @@ export type Database = {
       products: {
         Row: {
           active_ingredients: string[] | null
+          avoid_if_tags: string[]
           brand: string | null
           category: string | null
           cautions: string[] | null
+          clinical_use_tags: string[]
+          counselling_flags: string[]
           created_at: string
           indications: string[] | null
+          medicine_interaction_flags: string[]
           name: string
           notes: string | null
           pack_sizes: string[] | null
@@ -324,11 +328,15 @@ export type Database = {
         }
         Insert: {
           active_ingredients?: string[] | null
+          avoid_if_tags?: string[]
           brand?: string | null
           category?: string | null
           cautions?: string[] | null
+          clinical_use_tags?: string[]
+          counselling_flags?: string[]
           created_at?: string
           indications?: string[] | null
+          medicine_interaction_flags?: string[]
           name: string
           notes?: string | null
           pack_sizes?: string[] | null
@@ -340,11 +348,15 @@ export type Database = {
         }
         Update: {
           active_ingredients?: string[] | null
+          avoid_if_tags?: string[]
           brand?: string | null
           category?: string | null
           cautions?: string[] | null
+          clinical_use_tags?: string[]
+          counselling_flags?: string[]
           created_at?: string
           indications?: string[] | null
+          medicine_interaction_flags?: string[]
           name?: string
           notes?: string | null
           pack_sizes?: string[] | null
@@ -358,18 +370,24 @@ export type Database = {
       }
       recommendations: {
         Row: {
+          advice: string | null
           ai_reviewer_notes: Json | null
+          alternatives: Json
           brand: string | null
           case_id: string
           confidence: string
+          confidence_score: number | null
           created_at: string
           deferred: boolean
           feedback_status: string | null
           hidden: boolean
           interaction_notes: Json | null
+          matched_factors: Json
           matched_medicines: Json | null
           matched_patient_factors: Json | null
           matched_product_tags: Json | null
+          mechanism: string | null
+          onset: string | null
           pharmacist_checks: Json | null
           product_id: string | null
           product_name: string | null
@@ -378,8 +396,10 @@ export type Database = {
           recommendation_type: string
           review_status: string | null
           safety_cautions: Json | null
+          safety_net: string | null
           score: number
           sense_check_status: string | null
+          severity_tier: string | null
           source_references: Json | null
           talking_points: Json | null
           title: string
@@ -387,18 +407,24 @@ export type Database = {
           why_triggered: string | null
         }
         Insert: {
+          advice?: string | null
           ai_reviewer_notes?: Json | null
+          alternatives?: Json
           brand?: string | null
           case_id: string
           confidence?: string
+          confidence_score?: number | null
           created_at?: string
           deferred?: boolean
           feedback_status?: string | null
           hidden?: boolean
           interaction_notes?: Json | null
+          matched_factors?: Json
           matched_medicines?: Json | null
           matched_patient_factors?: Json | null
           matched_product_tags?: Json | null
+          mechanism?: string | null
+          onset?: string | null
           pharmacist_checks?: Json | null
           product_id?: string | null
           product_name?: string | null
@@ -407,8 +433,10 @@ export type Database = {
           recommendation_type: string
           review_status?: string | null
           safety_cautions?: Json | null
+          safety_net?: string | null
           score?: number
           sense_check_status?: string | null
+          severity_tier?: string | null
           source_references?: Json | null
           talking_points?: Json | null
           title: string
@@ -416,18 +444,24 @@ export type Database = {
           why_triggered?: string | null
         }
         Update: {
+          advice?: string | null
           ai_reviewer_notes?: Json | null
+          alternatives?: Json
           brand?: string | null
           case_id?: string
           confidence?: string
+          confidence_score?: number | null
           created_at?: string
           deferred?: boolean
           feedback_status?: string | null
           hidden?: boolean
           interaction_notes?: Json | null
+          matched_factors?: Json
           matched_medicines?: Json | null
           matched_patient_factors?: Json | null
           matched_product_tags?: Json | null
+          mechanism?: string | null
+          onset?: string | null
           pharmacist_checks?: Json | null
           product_id?: string | null
           product_name?: string | null
@@ -436,8 +470,10 @@ export type Database = {
           recommendation_type?: string
           review_status?: string | null
           safety_cautions?: Json | null
+          safety_net?: string | null
           score?: number
           sense_check_status?: string | null
+          severity_tier?: string | null
           source_references?: Json | null
           talking_points?: Json | null
           title?: string
