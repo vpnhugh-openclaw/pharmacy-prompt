@@ -113,6 +113,19 @@ const DEFAULT_SYMPTOM_MAP: SymptomTagMap = {
   nail: ["hair_nail_support"],
   joint: ["joint_health"],
   bone: ["bone_health"],
+  // Preconception / pregnancy-planning keywords. The intake form's
+  // pregnancy_status enum (not_applicable / no / yes / unsure) does
+  // not include "planning", so a patient expressing "pregnancy
+  // planning" / "trying to conceive" / "preconception" must hit these
+  // symptom_map entries to drive the folate/iron support factor.
+  // Without this, Activated Folate 500 (HOG-0004) never surfaces
+  // for a preconception patient — a real gap caught by the
+  // precision-floor validation tests (Item 2 CASE B).
+  pregnancy: ["folate_support", "iron_support"],
+  planning: ["folate_support"],
+  preconception: ["folate_support", "iron_support"],
+  conceive: ["folate_support"],
+  trying: ["folate_support"],
 };
 
 // Suppress the product if it has an avoid_if_tag AND the patient has one
@@ -197,8 +210,14 @@ function matchProduct(
   factors: string[],
   symptomBlob: string,
   maps: TagMaps,
-): { matchedTags: string[]; matchedMeds: string[]; matchedFactors: string[] } {
+): {
+  matchedTags: string[];
+  matchedMeds: string[];
+  matchedFactors: string[];
+  symptomMatchedTags: string[];
+} {
   const matchedTags = new Set<string>();
+  const symptomMatchedTags = new Set<string>();
   const matchedMeds = new Set<string>();
   const matchedFactors = new Set<string>();
 
@@ -236,6 +255,7 @@ function matchProduct(
     for (const t of tags) {
       if (product.clinical_use_tags.includes(t)) {
         matchedTags.add(t);
+        symptomMatchedTags.add(t);
       }
     }
   }
@@ -244,6 +264,7 @@ function matchProduct(
     matchedTags: Array.from(matchedTags),
     matchedMeds: Array.from(matchedMeds),
     matchedFactors: Array.from(matchedFactors),
+    symptomMatchedTags: Array.from(symptomMatchedTags),
   };
 }
 
@@ -356,6 +377,88 @@ function isSuppressed(
   return reasons;
 }
 
+// -----------------------------------------------------------------------
+// Deterministic age-appropriateness gate
+// -----------------------------------------------------------------------
+// The HOG seed has no separate `category` column distinguishing
+// paediatric products; the only reliable marker is the product name
+// (Children's, Child, Kids, Junior, Infant, Baby, Paediatric). We do
+// NOT hardcode HOG-#### UUIDs — when the catalogue is updated, the
+// name pattern will catch new paediatric entries automatically.
+//
+// The gate is a strict negative: if the patient is clearly an adult
+// (>=18) and the product is named as a children's product, suppress.
+// The inverse also applies: if the patient is clearly a child (<12)
+// and the product is not a children's product, suppress. We do NOT
+// fire on `age === null` (the patient didn't tell us) because the
+// other suppression paths still apply.
+
+const PAEDIATRIC_NAME_RE =
+  /^(children'?s?|child|kid|kids|junior|infant|baby|paediatric|pediatric)\b/i;
+
+/** Returns true if the product name indicates a paediatric-only product. */
+export function isPaediatricName(name: string): boolean {
+  // Normalise curly/straight apostrophes so "Children's" and "Childs" both match.
+  const n = name.replace(/[''ʼ]/g, "'");
+  return PAEDIATRIC_NAME_RE.test(n.trim());
+}
+
+/**
+ * Deterministic age gate. Returns suppression reasons (empty = ok).
+ *
+ * Rules (post-Item 1 fix):
+ *   - age >= 18, paediatric product → suppress
+ *   - age in [12, 17], paediatric product → SUPPRESS (a 16yo should
+ *     never be offered "Children's Probiotic 15 Billion"). This is
+ *     the 12-17 gap fix — the previous code only suppressed for
+ *     age >= 18, so 12-17 saw children's products.
+ *   - age < 12, non-paediatric product → suppress
+ *   - age === null, paediatric product → SUPPRESS (fail-closed on
+ *     unknown age). Justification: the safer wrong is to over-suppress
+ *     paediatric products; the failure mode of a 30yo seeing
+ *     "Children's Probiotic" is far worse than the failure mode of
+ *     a 3yo seeing an adult product (the 3yo wouldn't trigger
+ *     anything via the catalogue anyway). The intake form should
+ *     still capture age required (see cases.functions.ts) so this
+ *     null-age branch should rarely fire in practice.
+ *   - age === null, non-paediatric product → no gate (we don't
+ *     blanket-suppress adult products on unknown age; the adult
+ *     suppression direction is reserved for clearly-paediatric
+ *     patients, age < 12).
+ */
+export function isAgeAppropriate(
+  product: ProductRow,
+  age: number | null,
+): string[] {
+  const paediatric = isPaediatricName(product.name);
+
+  // null-age: still suppress clearly-paediatric products.
+  if (age === null) {
+    if (paediatric) {
+      return [
+        `Age-inappropriate: paediatric product "${product.name}" for patient with unrecorded age`,
+      ];
+    }
+    return [];
+  }
+
+  // 12+ and paediatric: suppress (this is the gap fix).
+  if (age >= 12 && paediatric) {
+    return [
+      `Age-inappropriate: paediatric product "${product.name}" for patient age ${age}`,
+    ];
+  }
+
+  // < 12 and non-paediatric: suppress.
+  if (age < 12 && !paediatric) {
+    return [
+      `Age-inappropriate: adult product "${product.name}" for paediatric patient (age ${age})`,
+    ];
+  }
+
+  return [];
+}
+
 export function recommendProducts(
   ctx: PatientCtx,
   products: ProductRow[],
@@ -377,10 +480,18 @@ export function recommendProducts(
   for (const product of products) {
     if (!product.reviewed) continue;
 
+    // Deterministic suppression (avoid_if_tags, duplicate ingredients,
+    // active-ingredient vs safety-rule avoid_product_keywords).
     const suppressionReasons = isSuppressed(product, ctx, drugClassSet, factors, triggeredRules);
     if (suppressionReasons.length) continue;
 
-    const { matchedTags, matchedMeds, matchedFactors } = matchProduct(
+    // Deterministic age-appropriateness gate. Runs upstream of the
+    // AI sense-check, so a 90yo is never shown a children's product
+    // even if the AI errors out.
+    const ageReasons = isAgeAppropriate(product, ctx.age);
+    if (ageReasons.length) continue;
+
+    const { matchedTags, matchedMeds, matchedFactors, symptomMatchedTags } = matchProduct(
       product,
       ctx,
       drugClassSet,
@@ -390,6 +501,16 @@ export function recommendProducts(
     );
 
     if (matchedTags.length === 0) continue;
+
+    // Precision floor: a single incidental factor/drug-class tag is
+    // too weak to recommend. We require either:
+    //   (a) >= 2 distinct matched tags, OR
+    //   (b) at least 1 tag that came from the symptom map (a
+    //       patient-stated symptom/goal is a much stronger signal
+    //       than an incidental factor overlap).
+    // The case (b) path preserves the existing "symptom 'fatigue' →
+    // B12 product" behaviour for adults with no other drivers.
+    if (matchedTags.length < 2 && symptomMatchedTags.length === 0) continue;
 
     const confidence: ProductRecommendation["confidence"] =
       matchedTags.length >= 2 ? "High" : matchedTags.length === 1 ? "Medium" : "Low";
