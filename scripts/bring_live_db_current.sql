@@ -1,24 +1,20 @@
 -- ============================================================
--- PHARMAPROMPT OS -- APPLY PENDING MIGRATIONS TO LIVE LOVABLE CLOUD
+-- PHARMAPROMPT OS -- BRING LIVE LOVABLE CLOUD DB CURRENT
 -- ============================================================
--- Created: 2026-06-14
--- Author:  hughn78 (PharmaPrompt OS owner)
---
--- PURPOSE
--- Three Phase 5/6 migration files were committed and pushed to GitHub
--- but Lovable Cloud only auto-runs migrations authored through its
--- own agent. These three were never applied to the live DB:
+-- One-off ops script. NOT a Supabase migration: the three original
+-- Phase 5/6 migrations
 --
 --   * 20260614010000_seed_products_herbsofgold.sql
---       ALTER products (+4 columns) + INSERT 103 HOG rows
 --   * 20260614020000_extend_medication_dictionary.sql
---       +21 psychiatric/other drugs
 --   * 20260614030000_phase6_rationale_extension.sql
---       +8 cols on safety_rules, +8 cols on recommendations, backfill
 --
--- This file consolidates them in dependency-safe order with
--- idempotency hardening. Safe to re-run; will report zero affected
--- rows and no errors when nothing needs to change.
+-- are already committed in supabase/migrations/ and would be
+-- redundant to re-run as a 4th file. This script is the manual
+-- remediation that catches the live DB up to the state GitHub
+-- thinks it is in.
+--
+-- Apply via:  Lovable Cloud -> Database -> SQL editor -> paste
+-- the entire file contents -> click Run.
 --
 -- DEPENDENCY ORDER
 --   1. ALTER public.products           (adds columns INSERT needs)
@@ -56,6 +52,20 @@
 --     a re-run.
 --   * The recommendations table has no legacy data needing
 --     backfill; the 8 new columns all have safe defaults.
+--
+-- VERIFICATION (run after applying)
+--   SELECT count(*) FROM public.products;                 -- expect 103
+--   SELECT count(*) FROM public.medication_dictionary;    -- expect 166
+--   -- Phase 6 safety_rules columns (expect 8 rows)
+--   SELECT column_name FROM information_schema.columns
+--     WHERE table_name='safety_rules' AND column_name IN
+--       ('severity_tier','evidence_level','rule_source','mechanism',
+--        'mechanism_detail','advice','safety_net','onset');
+--   -- Phase 6 recommendations columns (expect 8 rows)
+--   SELECT column_name FROM information_schema.columns
+--     WHERE table_name='recommendations' AND column_name IN
+--       ('severity_tier','confidence_score','matched_factors','mechanism',
+--        'advice','safety_net','alternatives','onset');
 -- ============================================================
 
 
