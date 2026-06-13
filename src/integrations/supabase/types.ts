@@ -492,49 +492,73 @@ export type Database = {
       }
       safety_rules: {
         Row: {
+          advice: string | null
           avoid_product_keywords: string[] | null
           created_at: string
           description: string
+          evidence_level: string | null
           match_product_tags: string[] | null
+          mechanism: string | null
+          mechanism_detail: string | null
           name: string
+          onset: string | null
           pharmacist_checks: Json | null
           pharmacist_message: string
           recommendation_type: string
           review_required: boolean
           rule_id: string
+          rule_source: string | null
+          safety_net: string | null
           severity: string
+          severity_tier: string | null
           trigger_drug_classes: string[] | null
           trigger_keywords: string[] | null
           trigger_patient_factors: string[] | null
         }
         Insert: {
+          advice?: string | null
           avoid_product_keywords?: string[] | null
           created_at?: string
           description: string
+          evidence_level?: string | null
           match_product_tags?: string[] | null
+          mechanism?: string | null
+          mechanism_detail?: string | null
           name: string
+          onset?: string | null
           pharmacist_checks?: Json | null
           pharmacist_message: string
           recommendation_type: string
           review_required?: boolean
           rule_id: string
+          rule_source?: string | null
+          safety_net?: string | null
           severity: string
+          severity_tier?: string | null
           trigger_drug_classes?: string[] | null
           trigger_keywords?: string[] | null
           trigger_patient_factors?: string[] | null
         }
         Update: {
+          advice?: string | null
           avoid_product_keywords?: string[] | null
           created_at?: string
           description?: string
+          evidence_level?: string | null
           match_product_tags?: string[] | null
+          mechanism?: string | null
+          mechanism_detail?: string | null
           name?: string
+          onset?: string | null
           pharmacist_checks?: Json | null
           pharmacist_message?: string
           recommendation_type?: string
           review_required?: boolean
           rule_id?: string
+          rule_source?: string | null
+          safety_net?: string | null
           severity?: string
+          severity_tier?: string | null
           trigger_drug_classes?: string[] | null
           trigger_keywords?: string[] | null
           trigger_patient_factors?: string[] | null
